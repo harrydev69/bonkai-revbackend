@@ -1,0 +1,82 @@
+// Prisma database schema for BONKai
+
+// Configure the datasource. In production you should set the DATABASE_URL
+// environment variable to point at your PostgreSQL instance. For development
+// you can use SQLite by leaving the default URL unchanged. The provider
+// automatically switches based on the prefix of the url (postgres, mysql, etc.).
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Generate the Prisma client. The Node library will be used from
+// `@prisma/client` at runtime. You can run `pnpm prisma generate` to
+// regenerate the client after making schema changes.
+generator client {
+  provider = "prisma-client-js"
+}
+
+// User accounts keyed by their wallet address. Each user may have
+// multiple alerts and search history entries. Settings are stored in
+// a separate table so they can be optional.
+model User {
+  id            String      @id @default(uuid())
+  walletAddress String      @unique
+  createdAt     DateTime    @default(now())
+  lastLogin     DateTime    @default(now()) @updatedAt
+  premiumStatus Boolean     @default(false)
+  alerts        Alert[]
+  searches      SearchEntry[]
+  settings      UserSettings?
+}
+
+// Alert configuration for price, volume or social triggers. Alerts belong
+// to a user via the `userId` foreign key. They can be toggled on/off and
+// will record if they have been triggered to avoid duplicate notifications.
+model Alert {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  name      String
+  type      String
+  condition String?
+  value     Float?
+  priority  String   @default("low")
+  isActive  Boolean  @default(true)
+  triggered Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Search history records allow the UI to display a list of past queries.
+model SearchEntry {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  query     String
+  category  String
+  timestamp DateTime @default(now())
+}
+
+// User settings are stored as JSON blobs. They are optional and can
+// contain nested configuration for notifications, display preferences,
+// privacy settings and API integrations.
+model UserSettings {
+  userId       String    @id
+  user         User      @relation(fields: [userId], references: [id])
+  notifications Json?
+  display       Json?
+  privacy       Json?
+  api           Json?
+}
+
+// Historic price points allow the platform to render charts over time.
+// A cron job can insert new entries at regular intervals. The table
+// stores price, market cap and volume values along with a timestamp.
+model PricePoint {
+  id        String   @id @default(uuid())
+  ts        DateTime @default(now())
+  price     Float?
+  marketCap Float?
+  volume    Float?
+}
