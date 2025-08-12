@@ -118,9 +118,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left Content */}
-            <div
-              className={`space-y-8 transition-all duration-1000 delay-300 ${isLoaded ? "translate-x-0 opacity-100" : "-translate-x-20 opacity-0"}`}
-            >
+            <div className={`space-y-8 transition-all duration-1000 delay-300 ${isLoaded ? "translate-x-0 opacity-100" : "-translate-x-20 opacity-0"}`}>
               <div className="space-y-6">
                 <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-700 px-4 py-2 animate-bounce">
                   🚀 Now with AI-Powered Insights
@@ -167,11 +165,8 @@ export default function LandingPage() {
             </div>
 
             {/* Right Content - Mascot */}
-            <div
-              className={`relative transition-all duration-1000 delay-500 ${isLoaded ? "translate-x-0 opacity-100" : "translate-x-20 opacity-0"}`}
-            >
+            <div className={`relative transition-all duration-1000 delay-500 ${isLoaded ? "translate-x-0 opacity-100" : "translate-x-20 opacity-0"}`}>
               <div className="relative group">
-                {/* Floating Elements */}
                 <div className="absolute -top-8 -left-8 w-24 h-24 bg-orange-200 dark:bg-orange-800 rounded-full opacity-60 animate-pulse" />
                 <div
                   className="absolute -bottom-8 -right-8 w-20 h-20 bg-blue-200 dark:bg-blue-800 rounded-full opacity-60 animate-pulse"
@@ -186,7 +181,6 @@ export default function LandingPage() {
                   style={{ animationDelay: "1.5s" }}
                 />
 
-                {/* Main Mascot */}
                 <div className="relative z-10 group-hover:scale-105 transition-transform duration-500">
                   <div className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-orange-600/20 rounded-full blur-3xl animate-pulse" />
                   <Image
@@ -199,7 +193,6 @@ export default function LandingPage() {
                   />
                 </div>
 
-                {/* Floating UI Elements */}
                 <div
                   className="absolute top-20 -right-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg shadow-xl p-3 animate-float"
                   style={{ animationDelay: "0.5s" }}
@@ -236,16 +229,11 @@ export default function LandingPage() {
       </section>
 
       {/* Demo video modal */}
-      <VideoModal
-        open={showDemo}
-        onClose={() => setShowDemo(false)}
-        src="/videos/bonk-demo.mp4"
-      />
+      <VideoModal open={showDemo} onClose={() => setShowDemo(false)} src="/videos/bonk-demo.mp4" />
     </div>
   )
 }
 
-/** Minimal, accessible video modal kept in this file for convenience */
 function VideoModal({ open, onClose, src }: { open: boolean; onClose: () => void; src: string }) {
   useEffect(() => {
     if (!open) return
