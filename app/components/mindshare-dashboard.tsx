@@ -356,6 +356,7 @@ export function MindshareTracker() {
                 <CardDescription>Most mentioned terms associated with BONK</CardDescription>
               </CardHeader>
               <CardContent>
+                {/* bonkData prop is optional now */}
                 <SocialWordCloud />
               </CardContent>
             </Card>
@@ -551,4 +552,3 @@ export function MindshareTracker() {
 
 // Export both for compatibility
 export const MindshareAnalyticsDashboard = MindshareTracker
-
