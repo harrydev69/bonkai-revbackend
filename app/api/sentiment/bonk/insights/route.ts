@@ -1,8 +1,13 @@
-// app/api/sentiment/bonk/insights/route.ts
-import { NextResponse } from "next/server"
-import { getCoinInsights } from "@/lib/lunarcrush"
-export const dynamic = "force-dynamic"
+import { NextResponse } from "next/server";
+import { getCoinInsights } from "@/lib/lunarcrush";
+
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  const insights = await getCoinInsights("bonk")
-  return NextResponse.json({ insights })
+  try {
+    const insights = await getCoinInsights("BONK");
+    return NextResponse.json({ insights });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || "Insights failed" }, { status: 500 });
+  }
 }

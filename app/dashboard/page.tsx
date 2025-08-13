@@ -26,6 +26,10 @@ import { Toaster } from "../components/toaster"
 import { dataService } from "../services/data-service"
 import { ErrorBoundary } from "../components/error-boundary"
 
+// ➕ imports
+import SocialFeed from "../components/social-feed"
+import InfluencerList from "../components/influencer-list"
+
 export type ViewType =
   | "dashboard"
   | "profile"
@@ -56,6 +60,9 @@ export default function Dashboard() {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard")
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [showTour, setShowTour] = useState(false)
+
+  // helper to avoid `(v) => setCurrentView(v)` implicit any
+  const setView = (v: ViewType) => setCurrentView(v)
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -100,12 +107,6 @@ export default function Dashboard() {
       setShowTour(true)
     }
 
-    // Check if user has completed the tour
-    const tourCompleted = localStorage.getItem("bonkai-tour-completed")
-    if (!tourCompleted && !tourParam) {
-      // Don't auto-start tour unless explicitly requested
-    }
-
     // Load settings from localStorage
     const savedSettings = localStorage.getItem("bonkai-settings")
     if (savedSettings) {
@@ -138,14 +139,13 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    const unsubscribe = dataService.subscribeToRealTimeData((newData) => {
+    const unsubscribe = dataService.subscribeToRealTimeData((newData: BonkData) => {
       setBonkData(newData)
     })
-
     return unsubscribe
   }, [])
 
-  // Update the initial data loading:
+  // Initial data
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -159,23 +159,20 @@ export default function Dashboard() {
     loadInitialData()
   }, [])
 
-  const handleStartTour = () => {
-    setShowTour(true)
-  }
+  const handleStartTour = () => setShowTour(true)
 
   const handleTourComplete = () => {
     setShowTour(false)
-    // Remove tour parameter from URL
     const url = new URL(window.location.href)
     url.searchParams.delete("tour")
     window.history.replaceState({}, "", url.toString())
   }
 
-  const handleSettingsChange = (category: string, key: string, value: any) => {
+  const handleSettingsChange = (category: string, key: string, value: unknown) => {
     const newSettings = {
       ...settings,
       [category]: {
-        ...settings[category as keyof typeof settings],
+        ...(settings as any)[category],
         [key]: value,
       },
     }
@@ -438,7 +435,7 @@ export default function Dashboard() {
         {/* Action Buttons */}
         <div className="flex gap-4 pt-4">
           <Button
-            onClick={() => setCurrentView("dashboard")}
+            onClick={() => setView("dashboard")}
             className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
           >
             Save & Return to Dashboard
@@ -482,7 +479,13 @@ export default function Dashboard() {
   const renderContent = () => {
     switch (currentView) {
       case "dashboard":
-        return <MainContent setCurrentView={setCurrentView} bonkData={bonkData} />
+        return (
+          <div className="space-y-6">
+            <MainContent setCurrentView={setView} bonkData={bonkData} />
+            {/* OPTIONAL: show a compact feed on the main dashboard */}
+            <SocialFeed limit={20} />
+          </div>
+        )
       case "profile":
         return <ProfileDashboard />
       case "chat":
@@ -490,13 +493,25 @@ export default function Dashboard() {
       case "search":
         return <MetaSearchDashboard bonkData={bonkData} />
       case "sentiment":
-        return <SentimentDashboard bonkData={bonkData} />
-      case "mindshare":
-        return <MindshareTracker bonkData={bonkData} />
+        return (
+          <div className="space-y-6">
+            <SentimentDashboard bonkData={bonkData} />
+            <InfluencerList limit={25} />
+            <SocialFeed limit={50} />
+          </div>
+        )
+case "mindshare":
+  return <MindshareTracker refreshMs={settings.api.refreshInterval * 1000} />
       case "alerts":
         return <AlertsDashboard bonkData={bonkData} />
       case "narrative":
-        return <NarrativeTracker bonkData={bonkData} />
+        return (
+          <div className="space-y-6">
+            <NarrativeTracker bonkData={bonkData} />
+            <InfluencerList limit={25} />
+            <SocialFeed limit={50} />
+          </div>
+        )
       case "analytics":
         return <AnalyticsDashboard />
       case "calendar":
@@ -513,7 +528,7 @@ export default function Dashboard() {
           </div>
         )
       default:
-        return <MainContent setCurrentView={setCurrentView} bonkData={bonkData} />
+        return <MainContent setCurrentView={setView} bonkData={bonkData} />
     }
   }
 
@@ -523,7 +538,7 @@ export default function Dashboard() {
         <div className={isDarkMode ? "dark" : ""}>
           <ResponsiveLayout
             currentView={currentView}
-            setCurrentView={setCurrentView}
+            setCurrentView={setView}
             isDarkMode={isDarkMode}
             setIsDarkMode={setIsDarkMode}
             bonkData={bonkData}
@@ -533,7 +548,11 @@ export default function Dashboard() {
           </ResponsiveLayout>
 
           {showTour && (
-            <ProductTour currentView={currentView} setCurrentView={setCurrentView} onEndTour={handleTourComplete} />
+            <ProductTour
+              currentView={currentView}
+              setCurrentView={setView}
+              onEndTour={handleTourComplete}
+            />
           )}
 
           <Toaster />
@@ -542,4 +561,3 @@ export default function Dashboard() {
     </ErrorBoundary>
   )
 }
-

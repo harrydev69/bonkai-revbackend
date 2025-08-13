@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { TrendingUp, TrendingDown, Flame, Users, MessageCircle, Share2 } from "lucide-react"
-// keep prop for compatibility with your page, but it's unused now
 import type { BonkData } from "../dashboard/page"
 
+// -------------------------------
+// Types
+// -------------------------------
 interface NarrativeTrackerProps {
   bonkData?: BonkData
 }
@@ -22,19 +24,60 @@ interface Narrative {
   title: string
   description: string
   sentiment: Sentiment
-  strength: number
+  strength: number // 0..100
   mentions: number
-  engagement: number
+  engagement: number // average engagement per mention (rounded)
   trend: Trend
   tags: string[]
   sources: string[]
   timeframe: string
 }
 
+// Feed item shape (tolerant to different API versions)
+type FeedItem = {
+  text?: string
+  title?: string
+  tags?: string[] | string
+  platform?: string
+
+  // engagement-ish fields (various APIs)
+  likes?: number
+  like_count?: number
+  shares?: number
+  retweet_count?: number
+  quote_count?: number
+  comments?: number
+  reply_count?: number
+
+  // sentiment can be -1..1 or a score we’ll normalize heuristically
+  sentiment?: number
+  average_sentiment?: number
+
+  // timestamps (multiple forms)
+  timestamp?: number | string
+  time?: number | string
+  created_at?: number | string
+  created?: number | string
+}
+
+// -------------------------------
+// Helpers
+// -------------------------------
 function classifySentiment(n: number): Sentiment {
   if (n > 0.1) return "bullish"
   if (n < -0.1) return "bearish"
   return "neutral"
+}
+
+function parseTimestamp(post: Partial<FeedItem>): number {
+  // supports unix seconds, unix ms, or ISO strings
+  const raw = post?.timestamp ?? post?.time ?? post?.created_at ?? post?.created ?? null
+  if (raw == null) return Date.now()
+  if (typeof raw === "number") return raw < 1e12 ? raw * 1000 : raw
+  const n = Number(raw)
+  if (!Number.isNaN(n)) return n < 1e12 ? n * 1000 : n
+  const d = Date.parse(String(raw))
+  return Number.isNaN(d) ? Date.now() : d
 }
 
 function timeframeFromTimestamps(timestamps: number[]) {
@@ -57,18 +100,19 @@ function getSentimentBadge(s: Sentiment) {
   }
 }
 
-function getTrendIcon(t: Trend) {
+function getTrendIcon(t: Trend): JSX.Element {
   switch (t) {
     case "up":
       return <TrendingUp className="w-4 h-4 text-green-500" />
     case "down":
       return <TrendingDown className="w-4 h-4 text-red-500" />
     case "stable":
-      return <div className="w-4 h-4 bg-yellow-500 rounded-full" />
+      return <span className="inline-block w-4 h-4 bg-yellow-500 rounded-full" />
   }
 }
 
-function buildNarratives(feeds: any[]): Narrative[] {
+// Build narratives from social feeds
+function buildNarratives(feeds: FeedItem[]): Narrative[] {
   // Group by hashtag (case-insensitive)
   const groups: Record<
     string,
@@ -78,17 +122,23 @@ function buildNarratives(feeds: any[]): Narrative[] {
   for (const p of feeds) {
     const text: string = p.text || p.title || ""
     // tags from explicit field or infer from text
-    const tags: string[] = Array.from(new Set([...(p.tags || []), ...(text.match(/#\w+/g) || [])])).map((t) =>
-      String(t).toLowerCase()
-    )
+    const explicitTags = Array.isArray(p.tags)
+      ? p.tags
+      : typeof p.tags === "string"
+      ? p.tags.split(",").map((t) => t.trim())
+      : []
+    const inferredTags = text.match(/#\w+/g) ?? []
+    const tags: string[] = Array.from(new Set([...explicitTags, ...inferredTags])).map((t) => String(t).toLowerCase())
     if (!tags.length) continue
 
     const likes = Number(p.likes ?? p.like_count ?? 0)
     const shares = Number(p.shares ?? p.retweet_count ?? p.quote_count ?? 0)
     const comments = Number(p.comments ?? p.reply_count ?? 0)
     const engage = Math.max(0, likes + shares + comments)
-    const sent = Number(p.sentiment ?? 0)
-    const ts = p.timestamp ? Date.parse(p.timestamp) : p.time ? Date.parse(p.time) : Date.now()
+
+    const sentRaw = Number(p.sentiment ?? p.average_sentiment ?? 0)
+    const sent = Number.isFinite(sentRaw) ? sentRaw : 0
+    const ts = parseTimestamp(p)
 
     for (const raw of tags) {
       const tag = raw.startsWith("#") ? raw : `#${raw}`
@@ -97,15 +147,15 @@ function buildNarratives(feeds: any[]): Narrative[] {
       }
       groups[tag].mentions += 1
       groups[tag].engagement += engage
-      groups[tag].sentimentSum += Number.isFinite(sent) ? sent : 0
+      groups[tag].sentimentSum += sent
       if (p.platform) groups[tag].sources.add(String(p.platform))
-      groups[tag].timestamps.push(isNaN(ts) ? Date.now() : ts)
+      groups[tag].timestamps.push(ts)
     }
   }
 
-  // Compute normalized strength (0–100) by avg engagement per mention
+  // normalized strength (0–100) by avg engagement per mention
   const perTagAvg = Object.fromEntries(
-    Object.entries(groups).map(([tag, g]) => [tag, g.mentions ? g.engagement / g.mentions : 0]),
+    Object.entries(groups).map(([tag, g]) => [tag, g.mentions ? g.engagement / g.mentions : 0])
   )
   const maxAvg = Math.max(1, ...Object.values(perTagAvg))
 
@@ -137,18 +187,27 @@ function buildNarratives(feeds: any[]): Narrative[] {
   return list.sort((a, b) => b.strength - a.strength).slice(0, 12)
 }
 
+// -------------------------------
+// Component
+// -------------------------------
 export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
-  const [feeds, setFeeds] = useState<any[]>([])
+  const [feeds, setFeeds] = useState<FeedItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
     async function load() {
       try {
-        const res = await fetch("/api/feeds/bonk?limit=100", { cache: "no-store" })
-        const json = await res.json().catch(() => ({}))
+        const res = await fetch("/api/feeds/bonk?limit=200", { cache: "no-store" })
+        const json: unknown = await res.json().catch(() => ({}))
         if (!active) return
-        setFeeds(Array.isArray(json?.feeds) ? json.feeds : [])
+        const arr =
+          (json as any)?.feeds && Array.isArray((json as any).feeds)
+            ? ((json as any).feeds as FeedItem[])
+            : (json as any)?.data && Array.isArray((json as any).data)
+            ? ((json as any).data as FeedItem[])
+            : []
+        setFeeds(arr)
       } catch (e) {
         console.error("Narrative feeds error:", e)
       } finally {
@@ -178,7 +237,6 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Narrative Tracker</h1>
-          <p className="text-muted-foreground">Loading narratives…</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-pulse">
           <Card><CardHeader /><CardContent className="h-24" /></Card>

@@ -14,38 +14,20 @@ import { MindshareRadarChart } from "./mindshare-radar-chart"
 import { SocialWordCloud } from "./social-word-cloud"
 import { WhaleMovementTracker } from "./whale-movement-tracker"
 import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  BarChart3,
-  Activity,
-  Zap,
-  Target,
-  Brain,
-  MessageSquare,
-  ArrowUpRight,
-  ArrowDownRight,
-  Clock,
-  Globe,
+  TrendingUp, TrendingDown, DollarSign, BarChart3, Activity, Zap, Target, Brain,
+  MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Globe,
 } from "lucide-react"
 
-interface MainContentProps {
-  setCurrentView: (view: string) => void
-  bonkData: {
-    price: number
-    marketCap: number
-    change24h: number
-    volume24h: number
-    sentiment: "bullish" | "bearish" | "neutral"
-    socialVolume: number
-    mindshareRank: number
-  }
+import type { ViewType, BonkData } from "@/app/dashboard/page"
+
+export interface MainContentProps {
+  setCurrentView: (view: ViewType) => void
+  bonkData: BonkData
 }
 
 export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
   const [activeTab, setActiveTab] = useState("overview")
 
-  // ---- safe number helpers ----
   const asNumber = (v: unknown): number | null => {
     if (typeof v === "number" && Number.isFinite(v)) return v
     if (typeof v === "string") {
@@ -94,7 +76,7 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
     return `$${n.toFixed(0)}`
   }
 
-  const getSentimentColor = (sentiment: string) => {
+  const getSentimentColor = (sentiment: BonkData["sentiment"]) => {
     switch (sentiment) {
       case "bullish":
         return "text-green-600 bg-green-50 border-green-200"
@@ -105,7 +87,7 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
     }
   }
 
-  const getSentimentIcon = (sentiment: string) => {
+  const getSentimentIcon = (sentiment: BonkData["sentiment"]) => {
     switch (sentiment) {
       case "bullish":
         return <TrendingUp className="w-4 h-4" />
@@ -118,6 +100,24 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
 
   const change = asNumber(bonkData?.change24h)
   const isUp = change !== null && change >= 0
+
+  // Narrow to the exact literals SocialWordCloud expects
+  type WordCloudSentiment = "positive" | "negative" | "neutral"
+  type WordCloudInput = { keywords?: Array<{ word: string; count: number; sentiment?: WordCloudSentiment }> }
+
+  const toWordCloudSentiment = (
+    s: BonkData["sentiment"] | undefined
+  ): WordCloudSentiment => (s === "bullish" ? "positive" : s === "bearish" ? "negative" : "neutral")
+
+  const wordCloudInput: WordCloudInput = {
+    keywords: [
+      {
+        word: "bonk",
+        count: Math.max(0, Number(bonkData?.socialVolume ?? 0)),
+        sentiment: toWordCloudSentiment(bonkData?.sentiment),
+      },
+    ],
+  }
 
   return (
     <div className="flex-1 space-y-6 p-6">
@@ -152,15 +152,7 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
           <CardContent>
             <div className="text-2xl font-bold">{formatPrice(bonkData?.price, { min: 4, max: 8 })}</div>
             <div className="flex items-center space-x-1 text-xs">
-              {change !== null ? (
-                isUp ? (
-                  <ArrowUpRight className="w-3 h-3 text-green-500" />
-                ) : (
-                  <ArrowDownRight className="w-3 h-3 text-red-500" />
-                )
-              ) : (
-                <Activity className="w-3 h-3 text-muted-foreground" />
-              )}
+              {change !== null ? (isUp ? <ArrowUpRight className="w-3 h-3 text-green-500" /> : <ArrowDownRight className="w-3 h-3 text-red-500" />) : <Activity className="w-3 h-3 text-muted-foreground" />}
               <span className={change === null ? "text-muted-foreground" : isUp ? "text-green-500" : "text-red-500"}>
                 {change === null ? "—" : `${isUp ? "+" : ""}${change.toFixed(2)}% (24h)`}
               </span>
@@ -220,10 +212,8 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* BONK Ecosystem Dashboard */}
           <BonkEcosystemDashboard />
 
-          {/* Quick Actions */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -234,35 +224,19 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent"
-                  onClick={() => setCurrentView("chat")}
-                >
+                <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent" onClick={() => setCurrentView("chat")}>
                   <MessageSquare className="w-6 h-6" />
                   <span className="text-sm">AI Chat</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent"
-                  onClick={() => setCurrentView("sentiment")}
-                >
+                <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent" onClick={() => setCurrentView("sentiment")}>
                   <Activity className="w-6 h-6" />
                   <span className="text-sm">Sentiment</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent"
-                  onClick={() => setCurrentView("mindshare")}
-                >
+                <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent" onClick={() => setCurrentView("mindshare")}>
                   <Brain className="w-6 h-6" />
                   <span className="text-sm">Mindshare</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent"
-                  onClick={() => setCurrentView("alerts")}
-                >
+                <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent" onClick={() => setCurrentView("alerts")}>
                   <Target className="w-6 h-6" />
                   <span className="text-sm">Alerts</span>
                 </Button>
@@ -272,23 +246,20 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
         </TabsContent>
 
         <TabsContent value="letsbonk" className="space-y-6">
-          {/* LetsBonk.fun Ecosystem */}
           <LetsBonkEcosystemDashboard />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
-          {/* Advanced Analytics Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <VolumeHeatmap bonkData={bonkData} />
             <SentimentTrendChart bonkData={bonkData} />
             <MindshareRadarChart bonkData={bonkData} />
-            <SocialWordCloud bonkData={bonkData} />
+            {/* pass a typed, compatible object */}
+            <SocialWordCloud bonkData={wordCloudInput} />
           </div>
 
-          {/* Whale Movement Tracker */}
           <WhaleMovementTracker bonkData={bonkData} />
 
-          {/* Analytics Actions */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -299,27 +270,15 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Button
-                  variant="outline"
-                  className="h-16 flex flex-col items-center justify-center space-y-1 bg-transparent"
-                  onClick={() => setCurrentView("analytics")}
-                >
+                <Button variant="outline" className="h-16 flex flex-col items-center justify-center space-y-1 bg-transparent" onClick={() => setCurrentView("analytics")}>
                   <BarChart3 className="w-5 h-5" />
                   <span className="text-sm">Full Analytics</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-16 flex flex-col items-center justify-center space-y-1 bg-transparent"
-                  onClick={() => setCurrentView("narrative")}
-                >
+                <Button variant="outline" className="h-16 flex flex-col items-center justify-center space-y-1 bg-transparent" onClick={() => setCurrentView("narrative")}>
                   <Globe className="w-5 h-5" />
                   <span className="text-sm">Narrative Tracker</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-16 flex flex-col items-center justify-center space-y-1 bg-transparent"
-                  onClick={() => setCurrentView("calendar")}
-                >
+                <Button variant="outline" className="h-16 flex flex-col items-center justify-center space-y-1 bg-transparent" onClick={() => setCurrentView("calendar")}>
                   <Clock className="w-5 h-5" />
                   <span className="text-sm">Event Calendar</span>
                 </Button>
@@ -331,4 +290,3 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
     </div>
   )
 }
-

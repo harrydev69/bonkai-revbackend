@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MessageSquare, TrendingUp, Hash, Users, Globe, RefreshCw } from "lucide-react"
 
 // ----- Types -----
-type Sent = "positive" | "negative" | "neutral"
-type Trend = "up" | "down" | "stable"
+export type Sent = "positive" | "negative" | "neutral"
+export type Trend = "up" | "down" | "stable"
 
 interface WordData {
   word: string
@@ -19,7 +19,7 @@ interface WordData {
   size: number
 }
 
-interface SocialWordCloudProps {
+export interface SocialWordCloudProps {
   // Optional minimal shape so we don’t depend on ../page
   bonkData?: {
     keywords?: Array<{ word: string; count: number; sentiment?: Sent }>
@@ -34,7 +34,7 @@ type FeedItem = {
   tags?: string[]
   sentiment?: number // optional numeric sentiment from API
   engagement?: number
-  timestamp?: string
+  timestamp?: string | number
 }
 
 // ----- Component -----
@@ -51,10 +51,14 @@ export function SocialWordCloud({ bonkData }: SocialWordCloudProps) {
 
   async function generateWordCloud() {
     try {
-      const res = await fetch(`/api/feeds/bonk?limit=100`, { cache: "no-store" })
+      const res = await fetch(`/api/feeds/bonk?limit=200`, { cache: "no-store" })
       if (!res.ok) throw new Error("feeds endpoint not available")
       const json = await res.json()
-      const feeds: FeedItem[] = Array.isArray(json?.feeds) ? json.feeds : []
+      const feeds: FeedItem[] = Array.isArray(json?.feeds)
+        ? json.feeds
+        : Array.isArray(json?.data)
+        ? json.data
+        : []
 
       const derived = extractTagsFromFeeds(feeds, platform)
       const merged = addProvidedKeywords(derived, bonkData?.keywords)
@@ -187,14 +191,14 @@ export function SocialWordCloud({ bonkData }: SocialWordCloudProps) {
             <h3 className="text-lg font-semibold mb-4">Visual Word Cloud</h3>
             <div className="h-80 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-lg p-6 relative overflow-hidden">
               <div className="absolute inset-0 flex flex-wrap items-center justify-center p-4 gap-2">
-                {wordData.map((word) => (
+                {wordData.map((word, idx) => (
                   <span
                     key={word.word}
                     className={`inline-block px-3 py-1 rounded-full border cursor-pointer hover:scale-110 transition-all duration-200 ${getSentimentBg(word.sentiment)} ${getSentimentColor(word.sentiment)}`}
                     style={{
                       fontSize: `${Math.max(12, Math.min(24, word.size))}px`,
                       fontWeight: word.count > 500 ? "bold" : "normal",
-                      transform: `rotate(${(Math.random() - 0.5) * 20}deg)`,
+                      transform: `rotate(${((idx * 37) % 21) - 10}deg)`,
                       zIndex: word.count > 500 ? 10 : 1,
                     }}
                     title={`${word.word}: ${word.count} mentions (${word.sentiment})`}
@@ -202,6 +206,7 @@ export function SocialWordCloud({ bonkData }: SocialWordCloudProps) {
                     {word.word} {getTrendIcon(word.trend)}
                   </span>
                 ))}
+                {!wordData.length && <div className="text-sm text-muted-foreground">No tags found yet.</div>}
               </div>
             </div>
           </div>
@@ -238,6 +243,7 @@ export function SocialWordCloud({ bonkData }: SocialWordCloudProps) {
                   </Badge>
                 </div>
               ))}
+              {!topWords.length && <div className="text-sm text-muted-foreground">No trending words to show.</div>}
             </div>
           </div>
         </div>
@@ -351,9 +357,7 @@ function addProvidedKeywords(
   }))
 }
 
-function scaleWithTrend(
-  items: Array<{ word: string; count: number; sentiment: Sent }>
-): WordData[] {
+function scaleWithTrend(items: Array<{ word: string; count: number; sentiment: Sent }>): WordData[] {
   if (!items.length) return []
   const counts = items.map((i) => i.count)
   const min = Math.min(...counts)
@@ -371,63 +375,17 @@ function scaleWithTrend(
 // Mock fallback
 function buildMockData(): Array<{ word: string; count: number; sentiment: Sent; size: number; trend: Trend }> {
   const positive = [
-    "bullish",
-    "moon",
-    "pump",
-    "hodl",
-    "diamond",
-    "hands",
-    "solana",
-    "ecosystem",
-    "gaming",
-    "partnership",
-    "community",
-    "strong",
-    "growth",
-    "potential",
-    "buy",
+    "bullish","moon","pump","hodl","diamond","hands","solana","ecosystem","gaming","partnership","community","strong","growth","potential","buy",
   ]
-  const negative = ["dump", "bearish", "sell", "crash", "dip", "fear", "uncertainty", "volatile"]
+  const negative = ["dump","bearish","sell","crash","dip","fear","uncertainty","volatile"]
   const neutral = [
-    "bonk",
-    "token",
-    "price",
-    "volume",
-    "trading",
-    "analysis",
-    "chart",
-    "market",
-    "crypto",
-    "blockchain",
-    "defi",
-    "nft",
-    "meme",
-    "coin",
-    "investment",
+    "bonk","token","price","volume","trading","analysis","chart","market","crypto","blockchain","defi","nft","meme","coin","investment",
   ]
 
   const raw = [
-    ...positive.map<WordData>((word) => ({
-      word,
-      count: Math.floor(Math.random() * 1000) + 50,
-      sentiment: "positive",
-      size: 16,
-      trend: "up",
-    })),
-    ...negative.map<WordData>((word) => ({
-      word,
-      count: Math.floor(Math.random() * 800) + 20,
-      sentiment: "negative",
-      size: 16,
-      trend: "down",
-    })),
-    ...neutral.map<WordData>((word) => ({
-      word,
-      count: Math.floor(Math.random() * 700) + 30,
-      sentiment: "neutral",
-      size: 16,
-      trend: "stable",
-    })),
+    ...positive.map<WordData>((word) => ({ word, count: Math.floor(Math.random() * 1000) + 50, sentiment: "positive", size: 16, trend: "up" })),
+    ...negative.map<WordData>((word) => ({ word, count: Math.floor(Math.random() * 800) + 20, sentiment: "negative", size: 16, trend: "down" })),
+    ...neutral.map<WordData>((word) => ({ word, count: Math.floor(Math.random() * 700) + 30, sentiment: "neutral", size: 16, trend: "stable" })),
   ]
     .sort((a, b) => b.count - a.count)
     .slice(0, 30)
