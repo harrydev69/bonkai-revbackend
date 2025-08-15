@@ -38,7 +38,7 @@ type FeedItem = {
 }
 
 // ----- Component -----
-export function SocialWordCloud({ bonkData }: SocialWordCloudProps) {
+export default function SocialWordCloud({ bonkData }: SocialWordCloudProps) {
   const [timeframe, setTimeframe] = useState("24h")
   const [platform, setPlatform] = useState("all")
   const [wordData, setWordData] = useState<WordData[]>([])

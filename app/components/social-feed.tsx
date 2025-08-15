@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -47,36 +47,117 @@ function humanTime(ts?: number | string) {
   return isNaN(d.getTime()) ? "" : d.toLocaleString()
 }
 
-export default function SocialFeed({ limit = 30 }: { limit?: number }) {
+function toArray(input: any): Post[] {
+  if (Array.isArray(input)) return input as Post[]
+  if (input && Array.isArray(input.feeds)) return input.feeds as Post[]
+  if (input && Array.isArray(input.data)) return input.data as Post[]
+  if (input && Array.isArray(input.items)) return input.items as Post[]
+  return []
+}
+
+function dedupeById(arr: Post[]): Post[] {
+  const seen = new Set<string>()
+  const out: Post[] = []
+  for (const p of arr) {
+    const id = String(p.id ?? p.creator_id ?? Math.random())
+    if (!seen.has(id)) {
+      seen.add(id)
+      out.push(p)
+    }
+  }
+  return out
+}
+
+export default function SocialFeed({
+  limit = 30,
+  refreshMs = 45_000,
+  initialDelayMs,
+}: {
+  limit?: number
+  refreshMs?: number
+  initialDelayMs?: number
+}) {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const timerRef = useRef<number | null>(null)
+  const startedRef = useRef(false)
+
+  // small jitter to avoid multiple widgets fetching at the exact same moment
+  const jitter = initialDelayMs ?? 200 + Math.floor(Math.random() * 500)
+
+  const load = async (signal?: AbortSignal) => {
+    try {
+      setError(null)
+      const res = await fetch(`/api/feeds/bonk?limit=${limit}`, {
+        cache: "no-store",
+        signal,
+      })
+      if (!res.ok) {
+        const body = await res.text().catch(() => "")
+        throw new Error(`feeds ${res.status}: ${body || res.statusText}`)
+      }
+      const json = await res.json().catch(() => ({}))
+      const arr = dedupeById(toArray(json)).slice(0, limit)
+      setPosts(arr)
+    } catch (e: any) {
+      setError(String(e?.message ?? e))
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let active = true
-    ;(async () => {
-      try {
-        const res = await fetch(`/api/feeds/bonk?limit=${limit}`, { cache: "no-store" })
-        const j = await res.json().catch(() => ({}))
-        if (!active) return
-        const arr: Post[] = Array.isArray(j?.feeds) ? j.feeds : Array.isArray(j?.data) ? j.data : []
-        setPosts(arr)
-      } catch (e) {
-        console.error("feed load error", e)
-        setPosts([])
-      } finally {
-        if (active) setLoading(false)
+    const ac = new AbortController()
+
+    const kickOff = () => {
+      // stagger first call
+      window.setTimeout(() => load(ac.signal), jitter)
+      // periodic refresh (visibility-aware)
+      const tick = async () => {
+        if (document.visibilityState === "visible") await load()
+        timerRef.current = window.setTimeout(tick, refreshMs) as unknown as number
       }
-    })()
-    return () => {
-      active = false
+      timerRef.current = window.setTimeout(tick, refreshMs) as unknown as number
     }
-  }, [limit])
+
+    if (!startedRef.current) {
+      startedRef.current = true
+      kickOff()
+    }
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") void load()
+    }
+    document.addEventListener("visibilitychange", onVis)
+
+    return () => {
+      ac.abort()
+      if (timerRef.current) window.clearTimeout(timerRef.current)
+      document.removeEventListener("visibilitychange", onVis)
+    }
+  }, [limit, refreshMs, jitter])
 
   if (loading) {
     return (
       <Card>
         <CardHeader><CardTitle>Live BONK Social Feed</CardTitle></CardHeader>
         <CardContent><div className="h-24 animate-pulse rounded-md bg-muted" /></CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Live BONK Social Feed</CardTitle>
+          <Badge variant="destructive">error</Badge>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-red-600">Feed unavailable: {error}</div>
+        </CardContent>
       </Card>
     )
   }
@@ -92,7 +173,9 @@ export default function SocialFeed({ limit = 30 }: { limit?: number }) {
           const name =
             p.display_name || p.creator_name || p.username || p.handle || "Creator"
           const handle =
-            (p.handle && p.handle.startsWith("@")) ? p.handle : p.handle ? `@${p.handle}` : p.username ? `@${p.username}` : ""
+            p.handle
+              ? (p.handle.startsWith("@") ? p.handle : `@${p.handle}`)
+              : (p.username ? `@${p.username}` : "")
           const platform = (p.platform || "Social").toString()
           const likeCount = Number(p.likes ?? 0)
           const rtCount = Number(p.retweets ?? p.shares ?? 0)
@@ -109,7 +192,7 @@ export default function SocialFeed({ limit = 30 }: { limit?: number }) {
                 </Avatar>
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{name}</span>
                       {handle && <span className="text-sm text-muted-foreground">{handle}</span>}
                       <Badge variant="secondary">{platform}</Badge>

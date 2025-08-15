@@ -1,176 +1,96 @@
 // lib/lunarcrush.ts
-// v4 LunarCrush client (topic-based posts/creators, coin snapshot & time-series)
-// Adds queue rate limiting, in-flight de-dupe, cache, and 429 backoff.
+/**
+ * LunarCrush v4 helpers (server-side)
+ * Base: https://lunarcrush.com/api4
+ *
+ * Endpoints used:
+ *  - /public/topic/{topic}/posts/v1            (social feed)
+ *  - /public/topic/{topic}/creators/v1         (influencers/creators)
+ *  - /public/coins/{symbol}/v1                 (coin snapshot / insights)
+ *  - /public/coins/{symbol}/time-series/v2     (timeseries)
+ */
 
-import { withLcRateLimit } from "./lc-queue";
-
-const API_BASE = "https://lunarcrush.com/api4";
+const API_BASE =
+  process.env.LUNARCRUSH_API_BASE?.replace(/\/+$/, "") || "https://lunarcrush.com/api4";
 const API_KEY = process.env.LUNARCRUSH_API_KEY || "";
 
-// simple 30s cache (tune as needed)
-const TTL_MS = 30_000;
-const cache = new Map<string, { at: number; data: any }>();
-const inflight = new Map<string, Promise<any>>();
+function buildHeaders(init?: HeadersInit): Headers {
+  const h = new Headers(init);
+  h.set("accept", "application/json");
 
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
+  // Send the key in both common places so you're covered regardless of plan/gateway.
+  if (API_KEY) {
+    if (!h.has("authorization")) h.set("authorization", `Bearer ${API_KEY}`);
+    if (!h.has("x-api-key")) h.set("x-api-key", API_KEY);
+  }
+  return h;
 }
 
-/** Core fetch helper (queued + cached + retries) */
-export async function callLunarCrush(
-  path: string,
-  params?: Record<string, string | number | boolean | undefined>,
-  init?: RequestInit
-) {
-  const url = new URL(`${API_BASE}${path}`);
-  if (params) {
-    for (const [k, v] of Object.entries(params)) {
-      if (v !== undefined && v !== null && v !== "") url.searchParams.append(k, String(v));
-    }
-  }
-
-  const key = url.toString();
-
-  // cache hit
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.data;
-
-  // coalesce concurrent identical calls
-  const pending = inflight.get(key);
-  if (pending) return pending;
-
-  const job = withLcRateLimit(async () => {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const res = await fetch(key, {
-        ...init,
-        headers: {
-          ...(init?.headers || {}),
-          Authorization: `Bearer ${API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        next: { revalidate: 0 }, // disable ISR here; we already cache in memory
-      });
-
-      if (res.status === 429) {
-        const ra = Number(res.headers.get("retry-after"));
-        const wait = Number.isFinite(ra) ? ra * 1000 : 600 * 2 ** attempt + Math.random() * 300;
-        await sleep(wait);
-        continue;
-      }
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        console.error(`LunarCrush API error ${res.status}: ${body}`);
-        throw new Error(`LunarCrush API request failed: ${res.status} ${res.statusText}`);
-      }
-
-      const json = await res.json();
-      const data = json?.data ?? json;
-      cache.set(key, { at: Date.now(), data });
-      return data;
-    }
-    throw new Error("LunarCrush API request failed: 429 (after retries)");
+async function fetchJson<T = any>(path: string, init?: RequestInit): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, {
+    ...init,
+    cache: "no-store",
+    headers: buildHeaders(init?.headers),
   });
 
-  inflight.set(key, job);
-  try {
-    return await job;
-  } finally {
-    inflight.delete(key);
+  // Helpful error message for debugging from UI
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const reason = text || res.statusText || "Request failed";
+    const err = new Error(
+      `LunarCrush ${res.status} on ${path}${text ? ` — ${reason.slice(0, 300)}` : ""}`
+    );
+    // Attach status so callers can do backoff on 429
+    (err as any).status = res.status;
+    throw err;
   }
+
+  // Some endpoints return empty bodies on 204
+  if (res.status === 204) return {} as T;
+  return (await res.json()) as T;
 }
 
-/** Normalize a coin/topic into the v4 topic format (“bonk”) */
-function normalizeTopic(input: string) {
-  const s = (input || "").trim();
-  const core = s.startsWith("$") ? s.slice(1) : s;
-  return core.toLowerCase();
+// Many LC endpoints sometimes wrap results in { data: [...] } or { items: [...] }
+export function unwrapArray(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (data?.data && Array.isArray(data.data)) return data.data;
+  if (data?.items && Array.isArray(data.items)) return data.items;
+  return [];
 }
 
-/* =========================
-   Coin snapshot & time-series
-   ========================= */
-
-/** Current market/social snapshot (array of 1) */
-export async function getCoinSnapshot(symbol: string) {
-  const data = await callLunarCrush(`/public/coins/${symbol.toUpperCase()}/v1`);
-  return Array.isArray(data) ? data[0] : data;
+/** Social feed for a topic (e.g. "bonk"). limit is applied client-side if the API ignores it. */
+export async function getFeeds(topic: string, limit?: number) {
+  const t = String(topic).toLowerCase();
+  const qp = typeof limit === "number" ? `?limit=${encodeURIComponent(limit)}` : "";
+  // If limit is ignored by API, your route slices after calling this.
+  return await fetchJson(`/public/topic/${t}/posts/v1${qp}`);
 }
 
-/** Historical market/social time-series */
+/** Influencers / creators for a topic (e.g. "bonk"). v4 may not accept limit; slice in route. */
+export async function getInfluencers(topic: string) {
+  const t = String(topic).toLowerCase();
+  return await fetchJson(`/public/topic/${t}/creators/v1`);
+}
+
+/** Coin snapshot / insights (social_score, galaxy_score, etc.). Symbol can be "BONK" or "bonk". */
+export async function getCoinInsights(symbol: string) {
+  const s = String(symbol).toUpperCase();
+  return await fetchJson(`/public/coins/${s}/v1`);
+}
+
+/** Coin time-series for sentiment/volume etc. start/end are UNIX seconds. interval: "hour" | "day". */
 export async function getCoinTimeseries(
   symbol: string,
-  bucket: "hour" | "day" = "hour",
-  start?: string | number,
-  end?: string | number
+  interval: "hour" | "day",
+  start: number,
+  end: number
 ) {
-  return await callLunarCrush(`/public/coins/${symbol.toUpperCase()}/time-series/v2`, {
-    bucket,
-    ...(start !== undefined ? { start } : {}),
-    ...(end !== undefined ? { end } : {}),
+  const s = String(symbol).toUpperCase();
+  const params = new URLSearchParams({
+    interval,
+    start: String(start),
+    end: String(end),
   });
-}
-
-/* =========================
-   Posts & influencers (topic-based in v4)
-   ========================= */
-
-/** Posts by topic (use coin symbol as topic, e.g. BONK -> "bonk") */
-export async function getCoinFeeds(symbol: string, limit = 20) {
-  const topic = normalizeTopic(symbol);
-  // this endpoint supports limit
-  return await callLunarCrush(`/public/topic/${topic}/posts/v1`, { limit });
-}
-
-/** Top creators (influencers) for a topic */
-export async function getCoinInfluencers(symbol: string, limit = 12) {
-  const topic = normalizeTopic(symbol);
-  // this endpoint supports limit
-  const data = await callLunarCrush(`/public/topic/${topic}/creators/v1`, { limit });
-  return data;
-}
-
-/** Optional: posts by a specific creator if you have their network/id */
-export async function getCreatorPosts(network: string, id: string, limit = 20) {
-  return await callLunarCrush(`/public/creator/${network}/${id}/posts/v1`, { limit });
-}
-
-/* =========================
-   “Insights” (derived from posts)
-   ========================= */
-
-export async function getCoinInsights(symbol: string, limit = 200) {
-  const res = await getCoinFeeds(symbol, limit);
-  const posts: any[] = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-
-  const hashtags = new Map<string, number>();
-  const sentiment = { pos: 0, neg: 0, neu: 0 };
-
-  for (const p of posts) {
-    const text = String(p?.text ?? p?.title ?? "");
-    const tags = text.match(/#\w+/g) ?? [];
-    for (const t of tags) hashtags.set(t.toLowerCase(), (hashtags.get(t.toLowerCase()) || 0) + 1);
-
-    const s = Number(p?.sentiment ?? p?.average_sentiment ?? NaN);
-    if (!Number.isNaN(s)) {
-      if (s > 0.1) sentiment.pos++;
-      else if (s < -0.1) sentiment.neg++;
-      else sentiment.neu++;
-    }
-  }
-
-  const keywords = [...hashtags.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 30)
-    .map(([word, count]) => ({ word, count }));
-
-  return { keywords, sentiment, totalPosts: posts.length };
-}
-
-/* Back-compat exports */
-export async function getFeeds(symbol: string, limit = 20) {
-  return getCoinFeeds(symbol, limit);
-}
-export async function getInfluencers(symbol: string, limit = 12) {
-  return getCoinInfluencers(symbol, limit);
+  return await fetchJson(`/public/coins/${s}/time-series/v2?${params.toString()}`);
 }

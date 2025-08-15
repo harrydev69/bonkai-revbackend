@@ -11,7 +11,7 @@ import { BonkEcosystemDashboard } from "./bonk-ecosystem-dashboard"
 import { VolumeHeatmap } from "./volume-heatmap"
 import { SentimentTrendChart } from "./sentiment-trend-chart"
 import { MindshareRadarChart } from "./mindshare-radar-chart"
-import { SocialWordCloud } from "./social-word-cloud"
+import SocialWordCloud from "./social-word-cloud" // ✅ default import
 import { WhaleMovementTracker } from "./whale-movement-tracker"
 import {
   TrendingUp, TrendingDown, DollarSign, BarChart3, Activity, Zap, Target, Brain,

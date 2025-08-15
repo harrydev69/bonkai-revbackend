@@ -11,7 +11,8 @@ import {
   Calendar, Activity, Zap
 } from "lucide-react"
 import { MindshareRadarChart } from "./mindshare-radar-chart"
-import { SocialWordCloud } from "./social-word-cloud"
+// ✅ default import to match the module’s export shape
+import SocialWordCloud from "./social-word-cloud"
 
 type SentimentTag = "positive" | "neutral" | "negative"
 
@@ -38,6 +39,23 @@ type Influencer = Record<string, any>
 
 const FEEDS_WS_URL = process.env.NEXT_PUBLIC_FEEDS_WS_URL
 const INFLUENCERS_WS_URL = process.env.NEXT_PUBLIC_INFLUENCERS_WS_URL
+
+// --- helpers ---
+function clamp(n: number, lo = 0, hi = 100) {
+  return Math.max(lo, Math.min(hi, n))
+}
+function pct(part: number, total: number) {
+  return total > 0 ? (part / total) * 100 : 0
+}
+// robust timestamp → ms
+function parseMs(ts?: string | number): number {
+  if (ts === undefined || ts === null) return Date.now()
+  if (typeof ts === "number") return ts < 1e12 ? ts * 1000 : ts
+  const n = Number(ts)
+  if (!Number.isNaN(n)) return n < 1e12 ? n * 1000 : n
+  const d = Date.parse(ts)
+  return Number.isNaN(d) ? Date.now() : d
+}
 
 export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } = {}) {
   const [feeds, setFeeds] = useState<Feed[]>([])
@@ -99,7 +117,6 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
     let timer: number | undefined
 
     const tick = async () => {
-      // pause when tab is hidden to save resources
       if (document.visibilityState === "visible") {
         try {
           await loadOnce()
@@ -113,10 +130,7 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
     timer = window.setTimeout(tick, refreshMs)
 
     const onVis = () => {
-      if (document.visibilityState === "visible") {
-        // refresh immediately when user returns
-        void loadOnce()
-      }
+      if (document.visibilityState === "visible") void loadOnce()
     }
     document.addEventListener("visibilitychange", onVis)
 
@@ -126,7 +140,7 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
     }
   }, [refreshMs])
 
-  // ---------- Optional WebSocket live updates (if URLs provided) ----------
+  // ---------- Optional WebSocket live updates ----------
   useEffect(() => {
     const sockets: WebSocket[] = []
 
@@ -138,8 +152,8 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
           try {
             const payload = JSON.parse(evt.data)
             onMsg?.(payload)
-          } catch (e) {
-            // non-JSON messages are ignored
+          } catch {
+            /* ignore non-JSON */
           }
         }
         sockets.push(ws)
@@ -148,7 +162,6 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
       }
     }
 
-    // Expect messages like: { type: "feed", item: {...} } or { items: [...] }
     tryWS(FEEDS_WS_URL, (payload) => {
       const items: Feed[] = Array.isArray(payload?.items)
         ? payload.items
@@ -159,7 +172,6 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
       setFeeds(dedupeBy([...items, ...feedsRef.current], "id").slice(0, 500))
     })
 
-    // Expect messages like: { type: "influencer", item: {...} } or { items: [...] }
     tryWS(INFLUENCERS_WS_URL, (payload) => {
       const items: Influencer[] = Array.isArray(payload?.items)
         ? payload.items
@@ -174,9 +186,6 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
   }, [])
 
   // ---------- Metrics ----------
-  const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n))
-  const pct = (part: number, total: number) => (total > 0 ? (part / total) * 100 : 0)
-
   const socialMentions = feeds.length
   const influencerMentions = influencers.length
 
@@ -235,7 +244,8 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
       title: String(p.title ?? p.text?.slice(0, 80) ?? "Social update"),
       summary: String(p.text ?? p.title ?? "").slice(0, 200),
       category: (p.platform ?? "Social").toString(),
-      timestamp: new Date((Number(p.timestamp) || Date.now()) * 1000).toLocaleString(),
+      // ✅ robust timestamp formatting (sec/ms/ISO all OK)
+      timestamp: new Date(parseMs(p.timestamp ?? p.created_at)).toLocaleString(),
       source: (p.platform ?? "Social").toString(),
       trending: i < 5,
       engagement:
@@ -276,16 +286,10 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
-      .map(([topic, mentions], idx): {
-        topic: string
-        mentions: number
-        trend: "up" | "down" | "stable"
-        category: string
-      } => ({
+      .map(([topic, mentions], idx) => ({
         topic: topic.replace(/^#/, "").toUpperCase(),
         mentions,
-        // currently emit "up" or "stable"; type widened so UI can compare to "down" safely
-        trend: idx < 5 ? "up" : "stable",
+        trend: (idx < 5 ? "up" : "stable") as "up" | "down" | "stable",
         category: "Social",
       }))
   }, [feeds])
@@ -389,7 +393,7 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2 mb-6">
-            {categories.map((category) => (
+            {Array.from(new Set(["all", ...categories])).map((category) => (
               <Button
                 key={category}
                 variant={selectedCategory === category ? "default" : "outline"}
@@ -582,105 +586,105 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
           </Card>
         </TabsContent>
 
-  <TabsContent value="sentiment" className="space-y-4">
-  {(() => {
-    const sVals = feeds.map((p) => Number(p.sentiment ?? p.average_sentiment ?? 0))
-    const pos = sVals.filter((s) => s > 0.1).length
-    const neg = sVals.filter((s) => s < -0.1).length
-    const neu = sVals.length - pos - neg
-    const total = sVals.length || 1
-    const posPct = Math.round((pos / total) * 100)
-    const neuPct = Math.round((neu / total) * 100)
-    const negPct = Math.round((neg / total) * 100)
+        <TabsContent value="sentiment" className="space-y-4">
+          {(() => {
+            const sVals = feeds.map((p) => Number(p.sentiment ?? p.average_sentiment ?? 0))
+            const pos = sVals.filter((s) => s > 0.1).length
+            const neg = sVals.filter((s) => s < -0.1).length
+            const neu = sVals.length - pos - neg
+            const total = sVals.length || 1
+            const posPct = Math.round((pos / total) * 100)
+            const neuPct = Math.round((neu / total) * 100)
+            const negPct = Math.round((neg / total) * 100)
 
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100/50">
-          <CardHeader>
-            <CardTitle className="text-green-700 flex items-center gap-2">
-              <Zap className="w-5 h-5" />
-              Positive
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-green-700 mb-2">{posPct}%</div>
-            <Progress value={posPct} className="mt-2 mb-3" />
-            <div className="text-sm text-green-600">Based on recent posts</div>
-          </CardContent>
-        </Card>
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100/50">
+                  <CardHeader>
+                    <CardTitle className="text-green-700 flex items-center gap-2">
+                      <Zap className="w-5 h-5" />
+                      Positive
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-4xl font-bold text-green-700 mb-2">{posPct}%</div>
+                    <Progress value={posPct} className="mt-2 mb-3" />
+                    <div className="text-sm text-green-600">Based on recent posts</div>
+                  </CardContent>
+                </Card>
 
-        <Card className="border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100/50">
-          <CardHeader>
-            <CardTitle className="text-yellow-700 flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              Neutral
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-yellow-700 mb-2">{neuPct}%</div>
-            <Progress value={neuPct} className="mt-2 mb-3" />
-            <div className="text-sm text-yellow-600">Based on recent posts</div>
-          </CardContent>
-        </Card>
+                <Card className="border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100/50">
+                  <CardHeader>
+                    <CardTitle className="text-yellow-700 flex items-center gap-2">
+                      <Target className="w-5 h-5" />
+                      Neutral
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-4xl font-bold text-yellow-700 mb-2">{neuPct}%</div>
+                    <Progress value={neuPct} className="mt-2 mb-3" />
+                    <div className="text-sm text-yellow-600">Based on recent posts</div>
+                  </CardContent>
+                </Card>
 
-        <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100/50">
-          <CardHeader>
-            <CardTitle className="text-red-700 flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              Negative
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-red-700 mb-2">{negPct}%</div>
-            <Progress value={negPct} className="mt-2 mb-3" />
-            <div className="text-sm text-red-600">Based on recent posts</div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  })()}
-
-  <Card>
-    <CardHeader>
-      <CardTitle>Sentiment Timeline</CardTitle>
-      <CardDescription>How sentiment has evolved over the past week</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-3">
-        {[
-          { date: "Today",       positive: 72, neutral: 19, negative: 9,  event: "ATH reached" },
-          { date: "Yesterday",   positive: 68, neutral: 22, negative: 10, event: "Mobile integration announced" },
-          { date: "2 days ago",  positive: 65, neutral: 25, negative: 10, event: "Community milestone" },
-          { date: "3 days ago",  positive: 62, neutral: 28, negative: 10, event: "DeFi partnerships" },
-          { date: "4 days ago",  positive: 58, neutral: 30, negative: 12, event: "Token burn event" },
-          { date: "5 days ago",  positive: 55, neutral: 32, negative: 13, event: "NFT collection launch" },
-          { date: "6 days ago",  positive: 52, neutral: 35, negative: 13, event: "Regular trading" },
-        ].map((day) => (
-          <div key={day.date} className="flex items-center justify-between p-3 border rounded-lg">
-            <div className="flex items-center gap-4">
-              <span className="font-medium w-20">{day.date}</span>
-              <span className="text-sm text-muted-foreground">{day.event}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-green-500 rounded-full" />
-                <span className="text-sm">{day.positive}%</span>
+                <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100/50">
+                  <CardHeader>
+                    <CardTitle className="text-red-700 flex items-center gap-2">
+                      <Activity className="w-5 h-5" />
+                      Negative
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-4xl font-bold text-red-700 mb-2">{negPct}%</div>
+                    <Progress value={negPct} className="mt-2 mb-3" />
+                    <div className="text-sm text-red-600">Based on recent posts</div>
+                  </CardContent>
+                </Card>
               </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full" />
-                <span className="text-sm">{day.neutral}%</span>
+            )
+          })()}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Sentiment Timeline</CardTitle>
+              <CardDescription>How sentiment has evolved over the past week</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[
+                  { date: "Today",       positive: 72, neutral: 19, negative: 9,  event: "ATH reached" },
+                  { date: "Yesterday",   positive: 68, neutral: 22, negative: 10, event: "Mobile integration announced" },
+                  { date: "2 days ago",  positive: 65, neutral: 25, negative: 10, event: "Community milestone" },
+                  { date: "3 days ago",  positive: 62, neutral: 28, negative: 10, event: "DeFi partnerships" },
+                  { date: "4 days ago",  positive: 58, neutral: 30, negative: 12, event: "Token burn event" },
+                  { date: "5 days ago",  positive: 55, neutral: 32, negative: 13, event: "NFT collection launch" },
+                  { date: "6 days ago",  positive: 52, neutral: 35, negative: 13, event: "Regular trading" },
+                ].map((day) => (
+                  <div key={day.date} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <span className="font-medium w-20">{day.date}</span>
+                      <span className="text-sm text-muted-foreground">{day.event}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-green-500 rounded-full" />
+                        <span className="text-sm">{day.positive}%</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full" />
+                        <span className="text-sm">{day.neutral}%</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-red-500 rounded-full" />
+                        <span className="text-sm">{day.negative}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-500 rounded-full" />
-                <span className="text-sm">{day.negative}%</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </CardContent>
-  </Card>
-</TabsContent>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   )

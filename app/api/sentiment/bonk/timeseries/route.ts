@@ -42,12 +42,18 @@ export async function GET(req: Request) {
       return await getCoinTimeseries("BONK", bucket, start, end);
     });
 
-    return NextResponse.json({ timeseries: series });
+    return NextResponse.json(
+      { timeseries: series },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=5, s-maxage=60, stale-while-revalidate=120",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("GET /api/sentiment/bonk/timeseries error:", err);
-    return NextResponse.json(
-      { error: String(err?.message ?? "Timeseries failed") },
-      { status: 500 }
-    );
+    const message = String(err?.message ?? "Timeseries failed");
+    const status = /429/.test(message) ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

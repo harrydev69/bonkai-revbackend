@@ -16,14 +16,16 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const raw = Number(url.searchParams.get("limit") ?? "12");
-    const limit = Math.max(1, Math.min(50, Number.isFinite(raw) ? raw : 12)); // reasonable cap
+    // creators endpoint may not honor "limit"; we clamp for slicing later
+    const limit = Math.max(1, Math.min(50, Number.isFinite(raw) ? raw : 12));
     const key = `influencers:BONK:${limit}`;
 
+    // 30s server memo to smooth bursts
     const data = await cached(key, 30_000, async () => {
       let lastErr: unknown;
       for (let i = 0; i < 3; i++) {
         try {
-          // ⚠️ v4 creators endpoint may NOT accept `limit`; fetch all then slice.
+          // fetch full creators list; slice locally
           return await getInfluencers("BONK");
         } catch (e: any) {
           lastErr = e;
@@ -40,12 +42,19 @@ export async function GET(req: Request) {
     });
 
     const influencers = toArray(data).slice(0, limit);
-    return NextResponse.json({ influencers });
+
+    return NextResponse.json(
+      { influencers },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=5, s-maxage=30, stale-while-revalidate=60",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("GET /api/influencers/bonk error:", err);
-    return NextResponse.json(
-      { error: String(err?.message ?? "Influencers failed") },
-      { status: 500 }
-    );
+    const message = String(err?.message ?? "Influencers failed");
+    const status = /429/.test(message) ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

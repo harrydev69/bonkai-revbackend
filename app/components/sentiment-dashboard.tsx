@@ -1,21 +1,15 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TrendingUp, Heart, MessageCircle, Users, Activity, Zap } from "lucide-react"
-import type { BonkData } from "../dashboard/page"
 
-// -------------------------------
-// Types
-// -------------------------------
-export interface SentimentDashboardProps {
-  bonkData: BonkData
-}
-
-// high-level label rows for UI
+/* -------------------------------
+   Types
+-------------------------------- */
 type PlatformRow = {
   name: string
   sentiment: "bullish" | "bearish" | "neutral"
@@ -37,23 +31,13 @@ type InfluencerRow = {
   impact: number // 0..100-ish
 }
 
-// API response shapes (tolerant/optional)
-type Snapshot = {
+type TimeseriesPoint = {
   average_sentiment?: number
   sentiment?: number
   social_volume?: number
   social_volume_24h?: number
   social_score?: number
   galaxy_score?: number
-}
-
-type TimeseriesPoint = {
-  average_sentiment?: number
-  sentiment?: number
-  social_volume?: number
-  social_volume_24h?: number
-  social_score?: number       // added
-  galaxy_score?: number       // added
   ts?: string | number
 }
 
@@ -61,7 +45,7 @@ type FeedItem = {
   platform?: string
   text?: string
   title?: string
-  sentiment?: number // -1..1 or 0..100; handled by normalizeScore/label
+  sentiment?: number // -1..1 or 0..100
 }
 
 type Influencer = {
@@ -77,48 +61,106 @@ type Influencer = {
   sentiment?: number
 }
 
-// -------------------------------
-// Component
-// -------------------------------
-export function SentimentDashboard({ bonkData }: SentimentDashboardProps) {
+// Insights payload from /api/sentiment/bonk/snapshot
+type Insights = {
+  keywords?: { word: string; count: number }[]
+  sentiment?: { pos: number; neg: number; neu: number }
+  totalPosts?: number
+}
+
+export default function SentimentDashboard({
+  refreshMs = 60_000,
+  points = 48,
+}: {
+  refreshMs?: number
+  points?: number
+}) {
   const [loading, setLoading] = useState(true)
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
+  const [insights, setInsights] = useState<Insights | null>(null)
   const [timeseries, setTimeseries] = useState<TimeseriesPoint[]>([])
   const [feeds, setFeeds] = useState<FeedItem[]>([])
   const [influencers, setInfluencers] = useState<Influencer[]>([])
+  const [error, setError] = useState<string | null>(null)
+
+  // jitter + visibility-aware refresh
+  const timerRef = useRef<number | null>(null)
+  const startedRef = useRef(false)
+  const jitter = 350 + Math.floor(Math.random() * 450)
 
   useEffect(() => {
-    let active = true
-    async function load() {
+    const ac = new AbortController()
+
+    const load = async (signal?: AbortSignal) => {
       try {
+        setError(null)
         const [snapRes, tsRes, feedRes, inflRes] = await Promise.all([
-          fetch("/api/sentiment/bonk/snapshot", { cache: "no-store" }).then((r) => r.json()),
-          fetch("/api/sentiment/bonk/timeseries?interval=hour&points=48", { cache: "no-store" }).then((r) => r.json()),
-          fetch("/api/feeds/bonk?limit=100", { cache: "no-store" }).then((r) => r.json()),
-          fetch("/api/influencers/bonk?limit=12", { cache: "no-store" }).then((r) => r.json()),
+          fetch("/api/sentiment/bonk/snapshot", { cache: "no-store", signal }),
+          fetch(`/api/sentiment/bonk/timeseries?interval=hour&points=${points}`, { cache: "no-store", signal }),
+          fetch("/api/feeds/bonk?limit=100", { cache: "no-store", signal }),
+          fetch("/api/influencers/bonk?limit=12", { cache: "no-store", signal }),
         ])
 
-        if (!active) return
+        // Try to parse JSON even if one failed (best-effort UI)
+        const [snapJson, tsJson, feedJson, inflJson] = await Promise.all([
+          snapRes.json().catch(() => ({})),
+          tsRes.json().catch(() => ({})),
+          feedRes.json().catch(() => ({})),
+          inflRes.json().catch(() => ({})),
+        ])
 
-        setSnapshot((snapRes?.snapshot ?? null) as Snapshot | null)
-        setTimeseries(Array.isArray(tsRes?.timeseries) ? (tsRes.timeseries as TimeseriesPoint[]) : [])
-        setFeeds(Array.isArray(feedRes?.feeds) ? (feedRes.feeds as FeedItem[]) : [])
-        setInfluencers(Array.isArray(inflRes?.influencers) ? (inflRes.influencers as Influencer[]) : [])
-      } catch (e) {
-        console.error("Sentiment dashboard load error:", e)
+        setInsights(
+          (snapJson?.insights ?? {
+            keywords: [],
+            sentiment: { pos: 0, neg: 0, neu: 0 },
+            totalPosts: 0,
+          }) as Insights
+        )
+        setTimeseries(Array.isArray(tsJson?.timeseries) ? tsJson.timeseries : [])
+        setFeeds(Array.isArray(feedJson?.feeds) ? feedJson.feeds : [])
+        setInfluencers(Array.isArray(inflJson?.influencers) ? inflJson.influencers : [])
+      } catch (e: any) {
+        setError(String(e?.message ?? e))
+        setInsights({ keywords: [], sentiment: { pos: 0, neg: 0, neu: 0 }, totalPosts: 0 })
+        setTimeseries([])
+        setFeeds([])
+        setInfluencers([])
       } finally {
-        if (active) setLoading(false)
+        setLoading(false)
       }
     }
-    load()
-    return () => {
-      active = false
-    }
-  }, [])
 
-  // -------------------------------
-  // Helpers
-  // -------------------------------
+    const kickOff = () => {
+      window.setTimeout(() => load(ac.signal), jitter)
+      const tick = async () => {
+        if (document.visibilityState === "visible") await load()
+        timerRef.current = window.setTimeout(tick, refreshMs) as unknown as number
+      }
+      timerRef.current = window.setTimeout(tick, refreshMs) as unknown as number
+    }
+
+    if (!startedRef.current) {
+      startedRef.current = true
+      kickOff()
+    }
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        void load()
+      }
+    }
+    document.addEventListener("visibilitychange", onVis)
+
+    return () => {
+      ac.abort()
+      if (timerRef.current) window.clearTimeout(timerRef.current)
+      document.removeEventListener("visibilitychange", onVis)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshMs, points, jitter])
+
+  /* -------------------------------
+     Helpers
+  -------------------------------- */
   const normalizeScore = (v: number | undefined | null) => {
     if (v === undefined || v === null || Number.isNaN(v)) return 50
     const n = Number(v)
@@ -143,35 +185,35 @@ export function SentimentDashboard({ bonkData }: SentimentDashboardProps) {
   const getSentimentBadge = (s: string) =>
     s === "bullish" ? "default" : s === "bearish" ? "destructive" : s === "neutral" ? "secondary" : "outline"
 
-  // latest time-series point for fallbacks
   const lastTS = useMemo(
     () => (Array.isArray(timeseries) && timeseries.length ? timeseries[timeseries.length - 1] : null),
     [timeseries]
   )
 
-  // overall sentiment label/score (fallback to lastTS; then bonkData)
-  const overallLabel = useMemo(() => {
-    const apiAvg = snapshot?.average_sentiment ?? snapshot?.sentiment ?? lastTS?.average_sentiment ?? lastTS?.sentiment
-    if (apiAvg !== undefined && apiAvg !== null) return labelFromSentiment(Number(apiAvg))
-    return (bonkData?.sentiment as "bullish" | "bearish" | "neutral") ?? "neutral"
-  }, [snapshot, lastTS, bonkData])
+  // Compute overall label/score primarily from insights counts; fall back to timeseries
+  const overallFromInsights = useMemo(() => {
+    const s = insights?.sentiment
+    if (!s) return null
+    const total = (s.pos ?? 0) + (s.neg ?? 0) + (s.neu ?? 0)
+    if (!total) return null
+    const posPct = Math.round(((s.pos ?? 0) / total) * 100)
+    const label: "bullish" | "bearish" | "neutral" = posPct >= 55 ? "bullish" : posPct <= 45 ? "bearish" : "neutral"
+    return { label, score: posPct }
+  }, [insights])
 
-  const overallScore = useMemo(() => {
-    const apiAvg = snapshot?.average_sentiment ?? snapshot?.sentiment ?? lastTS?.average_sentiment ?? lastTS?.sentiment
-    if (apiAvg !== undefined && apiAvg !== null) return normalizeScore(Number(apiAvg))
-    return bonkData?.sentiment === "bullish" ? 78 : bonkData?.sentiment === "bearish" ? 32 : 55
-  }, [snapshot, lastTS, bonkData])
+  const overallLabel = overallFromInsights?.label ??
+    labelFromSentiment(lastTS?.average_sentiment ?? lastTS?.sentiment ?? 0)
+  const overallScore =
+    overallFromInsights?.score ?? normalizeScore(lastTS?.average_sentiment ?? lastTS?.sentiment ?? 0)
 
   // social metrics (with fallbacks)
   const socialVolume =
-    snapshot?.social_volume ??
-    snapshot?.social_volume_24h ??
     lastTS?.social_volume ??
     lastTS?.social_volume_24h ??
     (Array.isArray(feeds) ? feeds.length : 0)
 
-  const engagementScore = snapshot?.social_score ?? lastTS?.social_score ?? 0
-  const viralScore = snapshot?.galaxy_score ?? lastTS?.galaxy_score ?? 0
+  const engagementScore = lastTS?.social_score ?? 0
+  const viralScore = lastTS?.galaxy_score ?? 0
 
   // platforms from feeds
   const platformRows: PlatformRow[] = useMemo(() => {
@@ -205,8 +247,17 @@ export function SentimentDashboard({ bonkData }: SentimentDashboardProps) {
     return rows.sort((a, b) => b.mentions - a.mentions).slice(0, 5)
   }, [feeds])
 
-  // keywords from feeds
+  // keywords from insights first; fall back to extracting from feeds
   const keywords: KeywordRow[] = useMemo(() => {
+    const fromInsights = (insights?.keywords ?? [])
+      .slice(0, 30)
+      .map(k => ({ word: k.word.replace(/^#/, ""), count: k.count, sentiment: "neutral" as const }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+
+    if (fromInsights.length) return fromInsights
+
+    // fallback: derive from feeds
     const counts: Record<string, { c: number; pos: number; neg: number }> = {}
     for (const post of feeds) {
       const text: string = post.text || post.title || ""
@@ -229,15 +280,15 @@ export function SentimentDashboard({ bonkData }: SentimentDashboardProps) {
       .slice(0, 10)
 
     return out.length ? out : [{ word: "bonk", count: 0, sentiment: "neutral" }]
-  }, [feeds])
+  }, [insights?.keywords, feeds])
 
   // influencers
   const influencerRows: InfluencerRow[] = useMemo(
     () =>
       influencers
-        .map((i) => {
+        .map((i, idx) => {
           const handle = (i.handle || i.username || i.name || "").toString()
-          const name = handle.startsWith("@") ? handle : handle ? `@${handle}` : i.display_name || "Influencer"
+          const name = handle.startsWith("@") ? handle : handle ? `@${handle}` : i.display_name || `Influencer_${idx}`
           const followers = Number(i.followers ?? i.followers_count ?? 0)
           const impact = Number(i.engagement ?? i.engagement_score ?? i.score ?? 0)
           const sNum = typeof i.sentiment === "number" ? i.sentiment : 0
@@ -267,9 +318,9 @@ export function SentimentDashboard({ bonkData }: SentimentDashboardProps) {
     return { sentimentChangePct, volumeFactor, positiveRatio }
   }, [timeseries])
 
-  // -------------------------------
-  // UI
-  // -------------------------------
+  /* -------------------------------
+     UI
+  -------------------------------- */
   if (loading) {
     return (
       <div className="space-y-6">
@@ -546,6 +597,15 @@ export function SentimentDashboard({ bonkData }: SentimentDashboardProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {error && (
+        <div className="text-sm text-red-600">
+          Failed to update some data: {error}
+        </div>
+      )}
     </div>
   )
 }
+
+// (Optional) also export a named version if other files import it that way
+export { SentimentDashboard }

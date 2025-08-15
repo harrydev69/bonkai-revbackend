@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,7 +32,7 @@ type Influencer = {
 
 function labelFromSentiment(n?: number): Sentiment {
   if (typeof n !== "number" || Number.isNaN(n)) return "neutral"
-  // support both -1..1 and 0..100
+  // support both -1..1 and 0..100 scales
   const v = Math.abs(n) <= 1.2 ? n : (n - 50) / 50
   if (v > 0.1) return "bullish"
   if (v < -0.1) return "bearish"
@@ -49,33 +49,107 @@ const sorters: Record<SortKey, (a: any, b: any) => number> = {
   posts: (a, b) => (b.posts ?? 0) - (a.posts ?? 0),
 }
 
-export default function InfluencerList({ limit = 20 }: { limit?: number }) {
+function toArray(data: any): any[] {
+  if (Array.isArray(data)) return data
+  if (data && Array.isArray((data as any).influencers)) return (data as any).influencers
+  if (data && Array.isArray((data as any).data)) return (data as any).data
+  if (data && Array.isArray((data as any).items)) return (data as any).items
+  return []
+}
+
+function dedupeByKey<T extends Record<string, any>>(arr: T[], pick: (x: T, i: number) => string) {
+  const seen = new Set<string>()
+  const out: T[] = []
+  for (let i = 0; i < arr.length; i++) {
+    const k = pick(arr[i], i)
+    if (!seen.has(k)) {
+      seen.add(k)
+      out.push(arr[i])
+    }
+  }
+  return out
+}
+
+export default function InfluencerList({
+  limit = 20,
+  refreshMs = 60_000,
+  initialDelayMs,
+}: {
+  limit?: number
+  refreshMs?: number
+  initialDelayMs?: number
+}) {
   const [raw, setRaw] = useState<Influencer[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   const [q, setQ] = useState("")
   const [platform, setPlatform] = useState("all")
   const [sortKey, setSortKey] = useState<SortKey>("impact")
 
-  useEffect(() => {
-    let active = true
-    ;(async () => {
-      try {
-        const res = await fetch(`/api/influencers/bonk?limit=${limit}`, { cache: "no-store" })
-        const j = await res.json().catch(() => ({}))
-        if (!active) return
-        const arr = Array.isArray(j?.influencers) ? j.influencers : Array.isArray(j?.data) ? j.data : []
-        setRaw(arr)
-      } catch (e) {
-        console.error("influencers load error:", e)
-        setRaw([])
-      } finally {
-        if (active) setLoading(false)
+  const timerRef = useRef<number | null>(null)
+  const startedRef = useRef(false)
+
+  // gentle jitter so multiple widgets don't call at the same millisecond
+  const jitter = initialDelayMs ?? 300 + Math.floor(Math.random() * 500)
+
+  const load = async (signal?: AbortSignal) => {
+    try {
+      setError(null)
+      const res = await fetch(`/api/influencers/bonk?limit=${limit}`, {
+        cache: "no-store",
+        signal,
+      })
+      if (!res.ok) {
+        const body = await res.text().catch(() => "")
+        throw new Error(`influencers ${res.status}: ${body || res.statusText}`)
       }
-    })()
-    return () => {
-      active = false
+      const j = await res.json().catch(() => ({}))
+      const arr = toArray(j)
+      // de-dupe by (id || handle || username)
+      const deduped = dedupeByKey(arr, (x, i) =>
+        String(x.id ?? x.handle ?? x.username ?? `idx:${i}`)
+      )
+      setRaw(deduped)
+    } catch (e: any) {
+      setError(String(e?.message ?? e))
+      setRaw([])
+    } finally {
+      setLoading(false)
     }
-  }, [limit])
+  }
+
+  useEffect(() => {
+    const ac = new AbortController()
+
+    const kickOff = () => {
+      // stagger first call
+      window.setTimeout(() => load(ac.signal), jitter)
+      // periodic refresh (visibility-aware)
+      const tick = async () => {
+        if (document.visibilityState === "visible") await load()
+        timerRef.current = window.setTimeout(tick, refreshMs) as unknown as number
+      }
+      timerRef.current = window.setTimeout(tick, refreshMs) as unknown as number
+    }
+
+    if (!startedRef.current) {
+      startedRef.current = true
+      kickOff()
+    }
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") void load()
+    }
+    document.addEventListener("visibilitychange", onVis)
+
+    return () => {
+      ac.abort()
+      if (timerRef.current) window.clearTimeout(timerRef.current)
+      document.removeEventListener("visibilitychange", onVis)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, refreshMs, jitter])
 
   const rows = useMemo(() => {
     const mapped = raw.map((i, idx) => {
@@ -91,10 +165,22 @@ export default function InfluencerList({ limit = 20 }: { limit?: number }) {
       const sentiment = labelFromSentiment(sentimentNum)
       const url =
         i.url ||
-        (plt.toLowerCase() === "twitter" || plt.toLowerCase() === "x"
+        (["twitter", "x"].includes(plt.toLowerCase())
           ? `https://twitter.com/${handle.replace(/^@/, "")}`
           : undefined)
-      return { id: i.id ?? `${idx}`, name, handle: normHandle, followers, impact, posts, platform: plt, avatar, sentiment, url }
+
+      return {
+        id: i.id ?? `${idx}`,
+        name,
+        handle: normHandle,
+        followers,
+        impact,
+        posts,
+        platform: plt,
+        avatar,
+        sentiment,
+        url,
+      }
     })
 
     const filtered = mapped.filter((r) => {
@@ -165,7 +251,13 @@ export default function InfluencerList({ limit = 20 }: { limit?: number }) {
       <CardContent className="space-y-3">
         {loading && <div className="h-24 w-full rounded-md bg-muted animate-pulse" />}
 
-        {!loading && rows.map((r, idx) => (
+        {!loading && error && (
+          <div className="text-sm text-red-600">
+            Unable to load influencers: {error}
+          </div>
+        )}
+
+        {!loading && !error && rows.map((r, idx) => (
           <div key={`${r.id}-${idx}`} className="flex items-center justify-between p-3 border rounded-lg">
             <div className="flex items-center gap-3">
               <div className="text-sm font-bold text-muted-foreground w-6 text-right">#{idx + 1}</div>
@@ -211,7 +303,7 @@ export default function InfluencerList({ limit = 20 }: { limit?: number }) {
           </div>
         ))}
 
-        {!loading && !rows.length && (
+        {!loading && !error && !rows.length && (
           <div className="text-sm text-muted-foreground">No influencers found.</div>
         )}
       </CardContent>

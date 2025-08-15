@@ -26,12 +26,18 @@ export async function GET() {
       return await getCoinInsights("bonk");
     });
 
-    return NextResponse.json({ insights });
+    return NextResponse.json(
+      { insights },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=5, s-maxage=60, stale-while-revalidate=120",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("GET /api/sentiment/bonk/snapshot error:", err);
-    return NextResponse.json(
-      { error: String(err?.message ?? "Snapshot failed") },
-      { status: 500 }
-    );
+    const message = String(err?.message ?? "Snapshot failed");
+    const status = /429/.test(message) ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
