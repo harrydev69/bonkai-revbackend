@@ -1,23 +1,28 @@
-import { NextResponse } from "next/server"
-import { getInfluencers, unwrapArray } from "@/lib/lunarcrush"
+import { getCoinInfluencers } from "@/lib/lunarcrush";
 
 /**
- * GET /api/influencers/[topic]?limit=25
+ * GET /api/influencers/[topic]
+ *
+ * Generic endpoint for retrieving influencers for an arbitrary topic. The
+ * `topic` parameter represents a cryptocurrency symbol or textual topic
+ * recognised by LunarCrush. An optional `limit` query parameter controls
+ * how many results are returned; because the underlying API does not
+ * support limits natively, this endpoint always slices the result array
+ * client‑side. Limits are clamped between 1 and 100 to prevent overly
+ * large payloads.
  */
 export async function GET(req: Request, { params }: { params: { topic: string } }) {
-  const { topic } = params
-  const url = new URL(req.url)
-  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "25", 10), 1), 100)
-
+  const { topic } = params;
   try {
-    const raw = await getInfluencers(topic) // hits https://lunarcrush.com/api4/public/topic/{topic}/creators/v1
-    const items = unwrapArray(raw).slice(0, limit)
-    return NextResponse.json({ items }, { status: 200 })
-  } catch (err: any) {
-    const status = err?.status && Number.isFinite(err.status) ? err.status : 500
-    return NextResponse.json(
-      { error: `influencers ${status}: ${err?.message || "failed"}` },
-      { status }
-    )
+    const url = new URL(req.url);
+    const rawLimit = parseInt(url.searchParams.get("limit") || "25", 10);
+    const limit = Math.max(1, Math.min(100, isFinite(rawLimit) ? rawLimit : 25));
+
+    const influencers = await getCoinInfluencers(topic, limit);
+    return Response.json({ influencers });
+  } catch (error: any) {
+    const message = String(error?.message || "Failed to fetch influencers");
+    const status = error?.status && Number.isFinite(error.status) ? error.status : 500;
+    return Response.json({ error: message }, { status });
   }
 }

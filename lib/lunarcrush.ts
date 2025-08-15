@@ -1,57 +1,87 @@
-// lib/lunarcrush.ts
-/**
- * LunarCrush v4 helpers (server-side)
- * Base: https://lunarcrush.com/api4
- *
- * Endpoints used:
- *  - /public/topic/{topic}/posts/v1            (social feed)
- *  - /public/topic/{topic}/creators/v1         (influencers/creators)
- *  - /public/coins/{symbol}/v1                 (coin snapshot / insights)
- *  - /public/coins/{symbol}/time-series/v2     (timeseries)
- */
+// bonkai-revbackend/lib/lunarcrush.ts
+//
+// Helper functions for interacting with the LunarCrush v4 API.
+//
+// The application relies on real‑time social and market data from LunarCrush
+// to populate the BONK dashboard. Previous versions of this project either
+// pointed at outdated endpoints or attempted to call routes that were never
+// implemented. This module centralises all API interaction logic and can be
+// imported from server‑side code (API routes, cron jobs, etc.).
 
-const API_BASE =
-  process.env.LUNARCRUSH_API_BASE?.replace(/\/+$/, "") || "https://lunarcrush.com/api4";
+/*
+ * Base URL for all LunarCrush requests.
+ *
+ * The Individual plan uses the v4 API hosted at https://lunarcrush.com/api4.
+ * A trailing slash is stripped to avoid accidental double slashes when
+ * concatenating paths. An optional environment variable
+ * `LUNARCRUSH_API_BASE` can override the base URL during development or
+ * testing. See https://lunarcrush.com/developers for details.
+ */
+const API_BASE = (process.env.LUNARCRUSH_API_BASE || "https://lunarcrush.com/api4").replace(/\/+$/, "");
+
+// API key used to authenticate with LunarCrush. The key must be provided
+// via the `LUNARCRUSH_API_KEY` environment variable. Without a valid key
+// requests will return HTTP 401. The Individual plan allows 10 requests
+// per minute and 2,000 requests per day, so consumers of this module
+// should implement caching or back‑off where appropriate.
 const API_KEY = process.env.LUNARCRUSH_API_KEY || "";
 
+/**
+ * Build a set of request headers for all API calls.
+ *
+ * Both the `Authorization` and `x-api-key` headers are set when an API
+ * key is available. LunarCrush accepts either header, but setting both
+ * maximises compatibility across different plans. Consumers may pass
+ * additional headers via the `init` parameter of `fetchJson` – those
+ * headers take precedence over the defaults defined here.
+ */
 function buildHeaders(init?: HeadersInit): Headers {
-  const h = new Headers(init);
-  h.set("accept", "application/json");
-
-  // Send the key in both common places so you're covered regardless of plan/gateway.
+  const headers = new Headers(init);
+  headers.set("accept", "application/json");
   if (API_KEY) {
-    if (!h.has("authorization")) h.set("authorization", `Bearer ${API_KEY}`);
-    if (!h.has("x-api-key")) h.set("x-api-key", API_KEY);
+    // Only set the header if the caller hasn't explicitly provided it.
+    if (!headers.has("authorization")) headers.set("authorization", `Bearer ${API_KEY}`);
+    if (!headers.has("x-api-key")) headers.set("x-api-key", API_KEY);
   }
-  return h;
+  return headers;
 }
 
+/**
+ * Perform a fetch request against the LunarCrush API and return the parsed
+ * JSON body. When the response is not OK an Error is thrown containing
+ * both the HTTP status and a truncated body for easier debugging.
+ */
 async function fetchJson<T = any>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
+  const response = await fetch(url, {
     ...init,
     cache: "no-store",
     headers: buildHeaders(init?.headers),
   });
 
-  // Helpful error message for debugging from UI
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    const reason = text || res.statusText || "Request failed";
-    const err = new Error(
-      `LunarCrush ${res.status} on ${path}${text ? ` — ${reason.slice(0, 300)}` : ""}`
-    );
-    // Attach status so callers can do backoff on 429
-    (err as any).status = res.status;
-    throw err;
+  if (!response.ok) {
+    // Attempt to read a textual body from the error response. This is
+    // particularly helpful when the server returns HTML (e.g. a 404 page)
+    // which would otherwise cause JSON parsing to throw a second error.
+    const text = await response.text().catch(() => "");
+    const reason = text || response.statusText || "Request failed";
+    const error = new Error(`LunarCrush ${response.status} on ${path} — ${reason.slice(0, 300)}`);
+    (error as any).status = response.status;
+    throw error;
   }
 
-  // Some endpoints return empty bodies on 204
-  if (res.status === 204) return {} as T;
-  return (await res.json()) as T;
+  // Some endpoints return no content on 204; return an empty object in
+  // those cases so callers do not try to parse undefined.
+  if (response.status === 204) return {} as T;
+  return (await response.json()) as T;
 }
 
-// Many LC endpoints sometimes wrap results in { data: [...] } or { items: [...] }
+/**
+ * Normalise various response shapes into a simple array. LunarCrush
+ * sometimes returns an object with a `data` or `items` array property. In
+ * other cases the top‑level response is already an array. This helper
+ * ensures downstream consumers always receive an array.
+ */
 export function unwrapArray(data: any): any[] {
   if (Array.isArray(data)) return data;
   if (data?.data && Array.isArray(data.data)) return data.data;
@@ -59,27 +89,56 @@ export function unwrapArray(data: any): any[] {
   return [];
 }
 
-/** Social feed for a topic (e.g. "bonk"). limit is applied client-side if the API ignores it. */
-export async function getFeeds(topic: string, limit?: number) {
-  const t = String(topic).toLowerCase();
-  const qp = typeof limit === "number" ? `?limit=${encodeURIComponent(limit)}` : "";
-  // If limit is ignored by API, your route slices after calling this.
-  return await fetchJson(`/public/topic/${t}/posts/v1${qp}`);
+/**
+ * Fetch a social feed for a given topic (symbol). The v4 feed endpoint
+ * accepts an optional `limit` query parameter, but it may be ignored by
+ * LunarCrush. To guarantee the caller receives the desired number of
+ * items, slice the response client‑side. Consumers should implement
+ * caching or back‑off when calling this function to respect rate limits.
+ *
+ * @param symbol Cryptocurrency symbol or topic name. Case insensitive.
+ * @param limit Maximum number of posts to return. Defaults to 50.
+ */
+export async function getCoinFeeds(symbol: string, limit: number = 50) {
+  const topic = String(symbol).toLowerCase();
+  const qp = limit ? `?limit=${encodeURIComponent(limit)}` : "";
+  const raw = await fetchJson(`/public/topic/${topic}/posts/v1${qp}`);
+  const items = unwrapArray(raw);
+  return items.slice(0, limit);
 }
 
-/** Influencers / creators for a topic (e.g. "bonk"). v4 may not accept limit; slice in route. */
-export async function getInfluencers(topic: string) {
-  const t = String(topic).toLowerCase();
-  return await fetchJson(`/public/topic/${t}/creators/v1`);
+/**
+ * Fetch the list of top influencers (creators) for a given topic. The
+ * creators endpoint does not accept a limit query parameter, so callers
+ * should specify a desired number of results which will be enforced via
+ * array slicing.
+ *
+ * @param symbol Cryptocurrency symbol or topic name. Case insensitive.
+ * @param limit Maximum number of influencers to return. Defaults to 25.
+ */
+export async function getCoinInfluencers(symbol: string, limit: number = 25) {
+  const topic = String(symbol).toLowerCase();
+  const raw = await fetchJson(`/public/topic/${topic}/creators/v1`);
+  const items = unwrapArray(raw);
+  return items.slice(0, limit);
 }
 
-/** Coin snapshot / insights (social_score, galaxy_score, etc.). Symbol can be "BONK" or "bonk". */
+/**
+ * Fetch a snapshot of coin insights (e.g. social score, galaxy score).
+ *
+ * @param symbol Cryptocurrency symbol. Case insensitive but normalised to
+ * uppercase as required by the API.
+ */
 export async function getCoinInsights(symbol: string) {
   const s = String(symbol).toUpperCase();
   return await fetchJson(`/public/coins/${s}/v1`);
 }
 
-/** Coin time-series for sentiment/volume etc. start/end are UNIX seconds. interval: "hour" | "day". */
+/**
+ * Fetch a time series for a coin's sentiment, volume, etc. See the
+ * LunarCrush documentation for valid intervals ("hour" or "day") and
+ * timestamp values. Timestamps are UNIX seconds.
+ */
 export async function getCoinTimeseries(
   symbol: string,
   interval: "hour" | "day",
@@ -87,10 +146,6 @@ export async function getCoinTimeseries(
   end: number
 ) {
   const s = String(symbol).toUpperCase();
-  const params = new URLSearchParams({
-    interval,
-    start: String(start),
-    end: String(end),
-  });
+  const params = new URLSearchParams({ interval, start: String(start), end: String(end) });
   return await fetchJson(`/public/coins/${s}/time-series/v2?${params.toString()}`);
 }
