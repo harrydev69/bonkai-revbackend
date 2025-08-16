@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { X, ArrowRight, ArrowLeft } from "lucide-react"
-import type { ViewType } from "../dashboard/page"
+import type { ViewType } from "@/app/dashboard/page"
 
-interface ProductTourProps {
+export interface ProductTourProps {
   currentView: ViewType
   setCurrentView: (view: ViewType) => void
   onEndTour: () => void
@@ -102,7 +102,7 @@ export function ProductTour({ currentView, setCurrentView, onEndTour }: ProductT
 
   const nextStep = () => {
     if (currentStep < tourSteps.length - 1) {
-      setCurrentStep(currentStep + 1)
+      setCurrentStep((prev) => prev + 1)
     } else {
       completeTour()
     }
@@ -110,7 +110,7 @@ export function ProductTour({ currentView, setCurrentView, onEndTour }: ProductT
 
   const prevStep = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1)
+      setCurrentStep((prev) => prev - 1)
     }
   }
 
@@ -188,4 +188,3 @@ export function ProductTour({ currentView, setCurrentView, onEndTour }: ProductT
     </div>
   )
 }
-
