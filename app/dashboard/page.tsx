@@ -46,10 +46,6 @@ import { Toaster } from "../components/toaster";
 import { dataService } from "../services/data-service";
 import { ErrorBoundary } from "../components/error-boundary";
 
-// Added sections you wired
-import SocialFeed from "../components/social-feed";
-import InfluencerList from "../components/influencer-list";
-
 export type ViewType =
   | "dashboard"
   | "profile"
@@ -570,8 +566,6 @@ export default function Dashboard() {
           <div className="space-y-6">
             {/* Updated: no bonkData prop */}
             <SentimentDashboard />
-            <InfluencerList limit={25} />
-            <SocialFeed limit={50} />
           </div>
         );
       case "mindshare":
@@ -583,8 +577,6 @@ export default function Dashboard() {
         return (
           <div className="space-y-6">
             <NarrativeTracker bonkData={bonkData} />
-            <InfluencerList limit={25} />
-            <SocialFeed limit={50} />
           </div>
         );
       case "analytics":

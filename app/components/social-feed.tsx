@@ -16,7 +16,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 
-type Post = {
+export type Post = {
   id: string
   post_type: string
   post_title: string
@@ -52,13 +52,99 @@ function humanTime(ts?: number | string) {
   return isNaN(d.getTime()) ? "" : d.toLocaleString()
 }
 
+// Keyword type for extracted keywords
+export type KeywordData = {
+  word: string
+  count: number
+  sentiment: "positive" | "negative" | "neutral"
+}
+
+// Function to extract keywords from text
+function extractKeywords(text: string): string[] {
+  console.log("extractKeywords called with text:", text)
+  
+  // Extract hashtags
+  const hashtags = text.match(/#\w+/g) || []
+  console.log("Extracted hashtags:", hashtags)
+  
+  // Extract common words (simple approach - in a real app you might use NLP)
+  const words = text.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 3)
+    .filter(word => !['this', 'that', 'with', 'have', 'from', 'they', 'been', 'were', 'what', 'when', 'where', 'will', 'would', 'could', 'should'].includes(word))
+  
+  console.log("Extracted words:", words)
+  
+  // Combine hashtags and common words, remove duplicates
+  const result = [...new Set([...hashtags, ...words])]
+  console.log("Final extracted keywords:", result)
+  
+  return result
+}
+
+// Function to aggregate keywords from posts and calculate sentiment
+export function aggregateKeywords(posts: Post[]): KeywordData[] {
+  console.log("aggregateKeywords called with posts:", posts)
+  
+  const keywordMap: Record<string, { count: number; positive: number; negative: number }> = {}
+  
+  posts.forEach(post => {
+    console.log("Processing post:", post)
+    const keywords = extractKeywords(post.post_title || "")
+    console.log("Extracted keywords from post:", keywords)
+    
+    const sentiment = post.post_sentiment || 0
+    
+    keywords.forEach(keyword => {
+      if (!keywordMap[keyword]) {
+        keywordMap[keyword] = { count: 0, positive: 0, negative: 0 }
+      }
+      
+      keywordMap[keyword].count++
+      
+      if (sentiment > 0.1) {
+        keywordMap[keyword].positive++
+      } else if (sentiment < -0.1) {
+        keywordMap[keyword].negative++
+      }
+    })
+  })
+  
+  console.log("Keyword map before processing:", keywordMap)
+  
+  // Convert to KeywordData array and determine sentiment
+  const result = Object.entries(keywordMap)
+    .map(([word, data]) => {
+      let sentiment: "positive" | "negative" | "neutral" = "neutral"
+      
+      if (data.positive > data.negative) {
+        sentiment = "positive"
+      } else if (data.negative > data.positive) {
+        sentiment = "negative"
+      }
+      
+      return {
+        word: word.replace(/^#/, ""), // Remove # from hashtags
+        count: data.count,
+        sentiment
+      }
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20) // Top 20 keywords
+  
+  console.log("Final aggregated keywords:", result)
+  
+  return result
+}
+
 export default function SocialFeed({
   limit = 30,
 }: {
   limit?: number
 }) {
   const [currentPage, setCurrentPage] = useState(1)
-  const postsPerPage = 10
+  const postsPerPage = 7
 
   const { data: rawData, isLoading, error } = useQuery({
     queryKey: ["feeds", "bonk", limit],
