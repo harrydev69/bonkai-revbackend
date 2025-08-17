@@ -1,8 +1,10 @@
+// app/dashboard/page.tsx
 "use client"
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { MainContent } from "../components/main-content"
+
+import MainContent from "../components/main-content"
 import { ChatInterface } from "../components/chat-interface"
 import { MetaSearchDashboard } from "../components/meta-search-dashboard"
 import { SentimentDashboard } from "../components/sentiment-dashboard"
@@ -23,8 +25,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Settings, Bell, Palette, Shield, Database } from "lucide-react"
 import { Toaster } from "../components/toaster"
-import { dataService } from "../services/data-service"
 import { ErrorBoundary } from "../components/error-boundary"
+
+// Bonk data provider/hook
+import { BonkProvider, useBonk } from "../context/bonk-context"
+import type { BonkData } from "../context/bonk-context"
 
 export type ViewType =
   | "dashboard"
@@ -41,17 +46,101 @@ export type ViewType =
   | "settings"
   | "faq"
 
-export interface BonkData {
-  price: number
-  marketCap: number
-  change24h: number
-  volume24h: number
-  sentiment: "bullish" | "bearish" | "neutral"
-  socialVolume: number
-  mindshareRank: number
+// Child component that CONSUMES the Bonk context (must be inside <BonkProvider>)
+function DashboardBody({
+  currentView,
+  setCurrentView,
+  isDarkMode,
+  setIsDarkMode,
+  onStartTour,
+  showTour,
+  onEndTour,
+  renderSettingsPage,
+}: {
+  currentView: ViewType
+  setCurrentView: (v: ViewType) => void
+  isDarkMode: boolean
+  setIsDarkMode: (b: boolean) => void
+  onStartTour: () => void
+  showTour: boolean
+  onEndTour: () => void
+  renderSettingsPage: () => JSX.Element
+}) {
+  const { bonkData } = useBonk()
+
+  const defaultBonk: BonkData = {
+    price: 0,
+    marketCap: 0,
+    change24h: 0,
+    volume24h: 0,
+    sentiment: "neutral",
+    socialVolume: 0,
+    mindshareRank: 0,
+  }
+  const safeBonk: BonkData = bonkData ?? defaultBonk
+
+  // Adapter to match MainContent prop type (expects (view: string) => void)
+  const setView = (view: string) => setCurrentView(view as ViewType)
+
+  const renderContent = () => {
+    switch (currentView) {
+      case "dashboard":
+        return <MainContent setCurrentView={setView} bonkData={safeBonk} />
+      case "profile":
+        return <ProfileDashboard />
+      case "chat":
+        return <ChatInterface bonkData={safeBonk} />
+      case "search":
+        return <MetaSearchDashboard bonkData={safeBonk} />
+      case "sentiment":
+        return <SentimentDashboard bonkData={safeBonk} />
+      case "mindshare":
+        return <MindshareTracker />
+      case "alerts":
+        return <AlertsDashboard bonkData={safeBonk} />
+      case "narrative":
+        return <NarrativeTracker bonkData={safeBonk} />
+      case "analytics":
+        return <AnalyticsDashboard />
+      case "calendar":
+        return <CalendarDashboard />
+      case "audio":
+        return <AudioLibrary />
+      case "settings":
+        return renderSettingsPage()
+      case "faq":
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
+            <p>FAQ content will be implemented here.</p>
+          </div>
+        )
+      default:
+        return <MainContent setCurrentView={setView} bonkData={safeBonk} />
+    }
+  }
+
+  return (
+    <>
+      <ResponsiveLayout
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        isDarkMode={isDarkMode}
+        setIsDarkMode={setIsDarkMode}
+        bonkData={safeBonk}
+        onStartTour={onStartTour}
+      >
+        {renderContent()}
+      </ResponsiveLayout>
+
+      {showTour && (
+        <ProductTour currentView={currentView} setCurrentView={setCurrentView} onEndTour={onEndTour} />
+      )}
+    </>
+  )
 }
 
-export default function Dashboard() {
+function DashboardInner() {
   const searchParams = useSearchParams()
   const [currentView, setCurrentView] = useState<ViewType>("dashboard")
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -82,90 +171,23 @@ export default function Dashboard() {
     },
   })
 
-  // Mock BONK data - in real app, this would come from an API
-  const [bonkData, setBonkData] = useState<BonkData>({
-    price: 0.00003435,
-    marketCap: 2340000000,
-    change24h: 18.6,
-    volume24h: 45600000,
-    sentiment: "bullish",
-    socialVolume: 2847,
-    mindshareRank: 3,
-  })
-
   useEffect(() => {
-    // Check URL parameters for tour
     const tourParam = searchParams.get("tour")
-    if (tourParam === "true") {
-      setShowTour(true)
-    }
+    if (tourParam === "true") setShowTour(true)
 
-    // Check if user has completed the tour
-    const tourCompleted = localStorage.getItem("bonkai-tour-completed")
-    if (!tourCompleted && !tourParam) {
-      // Don't auto-start tour unless explicitly requested
-    }
-
-    // Load settings from localStorage
     const savedSettings = localStorage.getItem("bonkai-settings")
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings))
-    }
+    if (savedSettings) setSettings(JSON.parse(savedSettings))
   }, [searchParams])
 
-  // Apply dark mode to document
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark")
-    } else {
-      document.documentElement.classList.remove("dark")
-    }
+    if (isDarkMode) document.documentElement.classList.add("dark")
+    else document.documentElement.classList.remove("dark")
   }, [isDarkMode])
 
-  // Simulate real-time data updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBonkData((prev) => ({
-        ...prev,
-        price: prev.price * (1 + (Math.random() - 0.5) * 0.02),
-        change24h: prev.change24h + (Math.random() - 0.5) * 2,
-        volume24h: prev.volume24h * (1 + (Math.random() - 0.5) * 0.05),
-        socialVolume: Math.floor(prev.socialVolume + (Math.random() - 0.5) * 100),
-      }))
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    const unsubscribe = dataService.subscribeToRealTimeData((newData) => {
-      setBonkData(newData)
-    })
-
-    return unsubscribe
-  }, [])
-
-  // Update the initial data loading:
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        const data = await dataService.getBonkData()
-        setBonkData(data)
-      } catch (error) {
-        console.error("Failed to load initial data:", error)
-      }
-    }
-
-    loadInitialData()
-  }, [])
-
-  const handleStartTour = () => {
-    setShowTour(true)
-  }
+  const handleStartTour = () => setShowTour(true)
 
   const handleTourComplete = () => {
     setShowTour(false)
-    // Remove tour parameter from URL
     const url = new URL(window.location.href)
     url.searchParams.delete("tour")
     window.history.replaceState({}, "", url.toString())
@@ -182,6 +204,9 @@ export default function Dashboard() {
     setSettings(newSettings)
     localStorage.setItem("bonkai-settings", JSON.stringify(newSettings))
   }
+
+  // Adapter to match MainContent prop type (expects (view: string) => void)
+  const setView = (view: string) => setCurrentView(view as ViewType)
 
   const renderSettingsPage = () => {
     return (
@@ -479,62 +504,25 @@ export default function Dashboard() {
     )
   }
 
-  const renderContent = () => {
-    switch (currentView) {
-      case "dashboard":
-        return <MainContent setCurrentView={setCurrentView} bonkData={bonkData} />
-      case "profile":
-        return <ProfileDashboard />
-      case "chat":
-        return <ChatInterface bonkData={bonkData} />
-      case "search":
-        return <MetaSearchDashboard bonkData={bonkData} />
-      case "sentiment":
-        return <SentimentDashboard bonkData={bonkData} />
-      case "mindshare":
-        return <MindshareTracker bonkData={bonkData} />
-      case "alerts":
-        return <AlertsDashboard bonkData={bonkData} />
-      case "narrative":
-        return <NarrativeTracker bonkData={bonkData} />
-      case "analytics":
-        return <AnalyticsDashboard />
-      case "calendar":
-        return <CalendarDashboard />
-      case "audio":
-        return <AudioLibrary />
-      case "settings":
-        return renderSettingsPage()
-      case "faq":
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
-            <p>FAQ content will be implemented here.</p>
-          </div>
-        )
-      default:
-        return <MainContent setCurrentView={setCurrentView} bonkData={bonkData} />
-    }
-  }
-
   return (
     <ErrorBoundary>
       <WalletProvider>
         <div className={isDarkMode ? "dark" : ""}>
-          <ResponsiveLayout
-            currentView={currentView}
-            setCurrentView={setCurrentView}
-            isDarkMode={isDarkMode}
-            setIsDarkMode={setIsDarkMode}
-            bonkData={bonkData}
-            onStartTour={handleStartTour}
+          <BonkProvider
+            refreshMs={settings.api.autoRefresh ? settings.api.refreshInterval * 1000 : 0}
+            useWebSocket={settings.api.enableWebSocket}
           >
-            {renderContent()}
-          </ResponsiveLayout>
-
-          {showTour && (
-            <ProductTour currentView={currentView} setCurrentView={setCurrentView} onEndTour={handleTourComplete} />
-          )}
+            <DashboardBody
+              currentView={currentView}
+              setCurrentView={setCurrentView}
+              isDarkMode={isDarkMode}
+              setIsDarkMode={setIsDarkMode}
+              onStartTour={handleStartTour}
+              showTour={showTour}
+              onEndTour={handleTourComplete}
+              renderSettingsPage={renderSettingsPage}
+            />
+          </BonkProvider>
 
           <Toaster />
         </div>
@@ -543,3 +531,6 @@ export default function Dashboard() {
   )
 }
 
+export default function Dashboard() {
+  return <DashboardInner />
+}

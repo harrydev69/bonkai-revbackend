@@ -1,13 +1,13 @@
+// app/components/main-content.tsx
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BonkEcosystemTicker } from "./bonk-ecosystem-ticker"
-import { LetsBonkEcosystemDashboard } from "./letsbonk-ecosystem-dashboard"
-import { BonkEcosystemDashboard } from "./bonk-ecosystem-dashboard"
 import { VolumeHeatmap } from "./volume-heatmap"
 import { SentimentTrendChart } from "./sentiment-trend-chart"
 import { MindshareRadarChart } from "./mindshare-radar-chart"
@@ -19,9 +19,6 @@ import {
   DollarSign,
   BarChart3,
   Activity,
-  Zap,
-  Target,
-  Brain,
   MessageSquare,
   ArrowUpRight,
   ArrowDownRight,
@@ -42,10 +39,75 @@ interface MainContentProps {
   }
 }
 
-export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
-  const [activeTab, setActiveTab] = useState("overview")
+/** Row shape returned by /api/tokens/top (CoinGecko category) */
+type TokenRow = {
+  id: string
+  symbol: string
+  name: string
+  price: number | null
+  change1h: number | null
+  change24h: number | null
+  change7d: number | null
+  volume: number | null
+  marketCap: number | null
+  logoUrl: string | null
+  sparkline?: number[]
+}
 
-  // ---- safe number helpers ----
+type ApiMeta = {
+  totalMarketCap: number
+  totalVolume: number
+  avg24h: number | null
+  updatedAt: number
+  source?: string
+}
+
+type ApiOut = {
+  tokens: TokenRow[]
+  meta?: ApiMeta
+}
+
+export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
+  const [activeTab, setActiveTab] = useState("letsbonk")
+
+  // ---- ecosystem list state (from CoinGecko category via our API) ----
+  const [ecoRows, setEcoRows] = useState<TokenRow[]>([])
+  const [ecoMeta, setEcoMeta] = useState<ApiMeta | null>(null)
+  const [ecoLoading, setEcoLoading] = useState(true)
+  const [ecoError, setEcoError] = useState<string | null>(null)
+  const [ecoUpdatedAt, setEcoUpdatedAt] = useState<number | null>(null)
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        setEcoLoading(true)
+        const q = new URLSearchParams({
+          vs_currency: "usd",
+          category: "letsbonk-fun-ecosystem",
+          per_page: "100",
+          page: "1",
+          order: "market_cap_desc",
+        })
+        let res = await fetch(`/api/tokens/top?${q.toString()}`)
+        if (!res.ok) {
+          await new Promise((r) => setTimeout(r, 600))
+          res = await fetch(`/api/tokens/top?${q.toString()}`)
+        }
+        if (!res.ok) throw new Error(`api ${res.status}`)
+        const j: ApiOut = await res.json()
+        setEcoRows(Array.isArray(j.tokens) ? j.tokens : [])
+        setEcoMeta(j.meta ?? null)
+        setEcoError(null)
+        setEcoUpdatedAt(j.meta?.updatedAt ?? Date.now())
+      } catch (e: any) {
+        setEcoError(e?.message ?? "load_error")
+      } finally {
+        setEcoLoading(false)
+      }
+    })()
+  }, [])
+
+  // ---- helpers ----
   const asNumber = (v: unknown): number | null => {
     if (typeof v === "number" && Number.isFinite(v)) return v
     if (typeof v === "string") {
@@ -58,7 +120,7 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
   const formatPrice = (v: unknown, opts?: { min?: number; max?: number; currency?: string }) => {
     const n = asNumber(v)
     if (n === null) return "—"
-    const { min = 4, max = 8, currency = "USD" } = opts ?? {}
+    const { min = n < 1 ? 4 : 2, max = n < 1 ? 8 : 6, currency = "USD" } = opts ?? {}
     return n.toLocaleString(undefined, {
       style: "currency",
       currency,
@@ -71,10 +133,7 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
     const n = asNumber(v)
     if (n === null) return "—"
     const { min = 0, max = 4 } = opts ?? {}
-    return n.toLocaleString(undefined, {
-      minimumFractionDigits: min,
-      maximumFractionDigits: max,
-    })
+    return n.toLocaleString(undefined, { minimumFractionDigits: min, maximumFractionDigits: max })
   }
 
   const formatMarketCap = (v: unknown) => {
@@ -119,6 +178,126 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
   const change = asNumber(bonkData?.change24h)
   const isUp = change !== null && change >= 0
 
+  // ---- client-side fallback summary ----
+  const computedMeta: ApiMeta | null = useMemo(() => {
+    if (ecoMeta) return ecoMeta
+    if (!ecoRows.length) return null
+    const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
+    const totalMarketCap = sum(
+      ecoRows.map((r) => (typeof r.marketCap === "number" && Number.isFinite(r.marketCap) ? r.marketCap : 0))
+    )
+    const totalVolume = sum(ecoRows.map((r) => (typeof r.volume === "number" && Number.isFinite(r.volume) ? r.volume : 0)))
+    const changes = ecoRows
+      .map((r) => (typeof r.change24h === "number" && Number.isFinite(r.change24h) ? r.change24h : null))
+      .filter((x): x is number => x !== null)
+    const avg24h = changes.length ? changes.reduce((a, b) => a + b, 0) / changes.length : null
+    return { totalMarketCap, totalVolume, avg24h, updatedAt: ecoUpdatedAt ?? Date.now(), source: "client-sum" }
+  }, [ecoMeta, ecoRows, ecoUpdatedAt])
+
+  const SummaryTiles = ({ meta }: { meta: ApiMeta | null }) => (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <Card className="hover:shadow-sm">
+        <CardHeader><CardTitle className="text-sm">Total Market Cap</CardTitle></CardHeader>
+        <CardContent><div className="text-2xl font-bold">{formatMarketCap(meta?.totalMarketCap)}</div></CardContent>
+      </Card>
+      <Card className="hover:shadow-sm">
+        <CardHeader><CardTitle className="text-sm">24h Volume</CardTitle></CardHeader>
+        <CardContent><div className="text-2xl font-bold">{formatVolume(meta?.totalVolume)}</div></CardContent>
+      </Card>
+      <Card className="hover:shadow-sm">
+        <CardHeader><CardTitle className="text-sm">Avg 24h Change</CardTitle></CardHeader>
+        <CardContent>
+          <div className={`text-2xl font-bold ${((meta?.avg24h ?? 0) >= 0) ? "text-green-600" : "text-red-600"}`}>
+            {meta?.avg24h == null ? "—" : `${meta.avg24h.toFixed(2)}%`}
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="hover:shadow-sm">
+        <CardHeader><CardTitle className="text-sm">Active Tokens</CardTitle></CardHeader>
+        <CardContent><div className="text-2xl font-bold">{ecoRows.length.toLocaleString()}</div></CardContent>
+      </Card>
+    </div>
+  )
+
+  const LetsBonkTable = () => {
+    if (ecoLoading) return <div className="p-6 text-sm text-muted-foreground">Loading ecosystem tokens…</div>
+    if (ecoError) return <div className="p-6 text-sm text-red-500">Failed to load: {ecoError}</div>
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-muted-foreground sticky top-0 bg-background">
+            <tr>
+              <th className="text-left py-2 px-2">Rank</th>
+              <th className="text-left py-2 px-2">Token</th>
+              <th className="text-right py-2 px-2">Price</th>
+              <th className="text-right py-2 px-2">1h</th>
+              <th className="text-right py-2 px-2">24h</th>
+              <th className="text-right py-2 px-2">7d</th>
+              <th className="text-right py-2 px-2">Volume (24h)</th>
+              <th className="text-right py-2 px-2">Market Cap</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ecoRows.map((t, i) => {
+              const up1 = (t.change1h ?? 0) >= 0
+              const up24 = (t.change24h ?? 0) >= 0
+              const up7  = (t.change7d ?? 0) >= 0
+              return (
+                <tr key={t.id} className="border-t hover:bg-muted/30">
+                  <td className="py-2 px-2">#{i + 1}</td>
+                  <td className="py-2 px-2">
+                    <Link
+                      href={`/token/${t.id}`}
+                      prefetch={false}
+                      className="group inline-flex items-center gap-2 rounded focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      aria-label={`Open ${t.name} details`}
+                      title={`Open ${t.name}`}
+                    >
+                      {t.logoUrl ? (
+                        <img
+                          src={t.logoUrl}
+                          alt={t.symbol}
+                          className="h-6 w-6 rounded-full object-cover"
+                          loading="lazy"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
+                        />
+                      ) : (
+                        <div className="h-6 w-6 rounded-full bg-muted grid place-items-center text-[10px]">
+                          {(t.symbol ?? "?").slice(0, 1)}
+                        </div>
+                      )}
+                      <span className="font-medium group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                        {t.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground uppercase">{t.symbol}</span>
+                    </Link>
+                  </td>
+                  <td className="text-right py-2 px-2">{formatPrice(t.price)}</td>
+                  <td className={`text-right py-2 px-2 ${up1 ? "text-green-600" : "text-red-600"}`}>
+                    {t.change1h == null ? "—" : `${t.change1h.toFixed(2)}%`}
+                  </td>
+                  <td className={`text-right py-2 px-2 ${up24 ? "text-green-600" : "text-red-600"}`}>
+                    {t.change24h == null ? "—" : `${t.change24h.toFixed(2)}%`}
+                  </td>
+                  <td className={`text-right py-2 px-2 ${up7 ? "text-green-600" : "text-red-600"}`}>
+                    {t.change7d == null ? "—" : `${t.change7d.toFixed(2)}%`}
+                  </td>
+                  <td className="text-right py-2 px-2">{formatVolume(t.volume)}</td>
+                  <td className="text-right py-2 px-2">{formatMarketCap(t.marketCap)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        <div className="pt-2 text-xs text-muted-foreground flex items-center gap-2">
+          {ecoUpdatedAt ? `Updated ${new Date(ecoUpdatedAt).toLocaleTimeString()}` : null}
+          {computedMeta?.source ? <span className="text-muted-foreground">src: {computedMeta.source}</span> : null}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 space-y-6 p-6">
       {/* Header Section */}
@@ -134,7 +313,7 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
           </Badge>
           <Badge variant="outline">
             <Clock className="w-3 h-3 mr-1" />
-            Updated now
+            {ecoUpdatedAt ? `Updated ${new Date(ecoUpdatedAt).toLocaleTimeString()}` : "Updated now"}
           </Badge>
         </div>
       </div>
@@ -153,11 +332,7 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
             <div className="text-2xl font-bold">{formatPrice(bonkData?.price, { min: 4, max: 8 })}</div>
             <div className="flex items-center space-x-1 text-xs">
               {change !== null ? (
-                isUp ? (
-                  <ArrowUpRight className="w-3 h-3 text-green-500" />
-                ) : (
-                  <ArrowDownRight className="w-3 h-3 text-red-500" />
-                )
+                isUp ? <ArrowUpRight className="w-3 h-3 text-green-500" /> : <ArrowDownRight className="w-3 h-3 text-red-500" />
               ) : (
                 <Activity className="w-3 h-3 text-muted-foreground" />
               )}
@@ -213,71 +388,28 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
 
       {/* Main Dashboard Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Ecosystem Overview</TabsTrigger>
-          <TabsTrigger value="letsbonk">LetsBonk.fun Top 10</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="letsbonk">LetsBonk.fun</TabsTrigger>
           <TabsTrigger value="analytics">Advanced Analytics</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          {/* BONK Ecosystem Dashboard */}
-          <BonkEcosystemDashboard />
+        <TabsContent value="letsbonk" className="space-y-6">
+          <SummaryTiles meta={computedMeta} />
 
-          {/* Quick Actions */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5" />
-                Quick Actions
-              </CardTitle>
-              <CardDescription>Access key features and tools</CardDescription>
+              <CardTitle>LetsBonk.fun Ecosystem</CardTitle>
+              <CardDescription>
+                Data from CoinGecko’s <code>letsbonk-fun-ecosystem</code> category via <code>/api/tokens/top</code>.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent"
-                  onClick={() => setCurrentView("chat")}
-                >
-                  <MessageSquare className="w-6 h-6" />
-                  <span className="text-sm">AI Chat</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent"
-                  onClick={() => setCurrentView("sentiment")}
-                >
-                  <Activity className="w-6 h-6" />
-                  <span className="text-sm">Sentiment</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent"
-                  onClick={() => setCurrentView("mindshare")}
-                >
-                  <Brain className="w-6 h-6" />
-                  <span className="text-sm">Mindshare</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent"
-                  onClick={() => setCurrentView("alerts")}
-                >
-                  <Target className="w-6 h-6" />
-                  <span className="text-sm">Alerts</span>
-                </Button>
-              </div>
+              <LetsBonkTable />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="letsbonk" className="space-y-6">
-          {/* LetsBonk.fun Ecosystem */}
-          <LetsBonkEcosystemDashboard />
-        </TabsContent>
-
         <TabsContent value="analytics" className="space-y-6">
-          {/* Advanced Analytics Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <VolumeHeatmap bonkData={bonkData} />
             <SentimentTrendChart bonkData={bonkData} />
@@ -285,10 +417,8 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
             <SocialWordCloud bonkData={bonkData} />
           </div>
 
-          {/* Whale Movement Tracker */}
           <WhaleMovementTracker bonkData={bonkData} />
 
-          {/* Analytics Actions */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -332,3 +462,4 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
   )
 }
 
+export default MainContent
