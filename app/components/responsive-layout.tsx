@@ -2,7 +2,7 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TopNavigation } from "./top-navigation";
 import { AppSidebar } from "./app-sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -13,17 +13,17 @@ import type { ViewType } from "../dashboard/page";
 // ✅ …but import BonkData from the context (not from page)
 import type { BonkData } from "../context/bonk-context";
 
-interface ResponsiveLayoutProps {
+export interface ResponsiveLayoutProps {
   children: React.ReactNode;
   currentView: ViewType;
-  setCurrentView: (view: ViewType) => void;
+  setCurrentView: React.Dispatch<React.SetStateAction<ViewType>> | ((v: ViewType) => void);
   isDarkMode: boolean;
   setIsDarkMode: (dark: boolean) => void;
   bonkData: BonkData;
   onStartTour?: () => void;
 }
 
-export function ResponsiveLayout({
+export const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({
   children,
   currentView,
   setCurrentView,
@@ -31,26 +31,46 @@ export function ResponsiveLayout({
   setIsDarkMode,
   bonkData,
   onStartTour,
-}: ResponsiveLayoutProps) {
+}) => {
   const [isMobile, setIsMobile] = useState(false);
 
-  // Safe fallback for optional onStartTour
-  const handleStartTour: () => void = onStartTour ?? (() => {});
+  // Normalize setCurrentView to a simple (ViewType) => void for child props
+  const forwardSetCurrentView = useCallback(
+    (v: ViewType) => {
+      // both React.Dispatch<SetStateAction<ViewType>> and (v: ViewType) => void
+      // are callable with a ViewType argument
+      (setCurrentView as (v: ViewType) => void)(v);
+    },
+    [setCurrentView]
+  );
+
+  // Safe callable wrapper for optional onStartTour
+  const handleStartTour = useCallback(() => {
+    onStartTour?.();
+  }, [onStartTour]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const mql = window.matchMedia("(max-width: 1023px)");
     const update = () => setIsMobile(mql.matches);
     update();
 
-    // Support old Safari
-    if (mql.addEventListener) mql.addEventListener("change", update);
-    else mql.addListener?.(update);
+    // Safari fallback for older versions
+    if ("addEventListener" in mql) {
+      mql.addEventListener("change", update);
+    } else {
+      // @ts-expect-error legacy Safari
+      mql.addListener(update);
+    }
 
-    window.addEventListener("resize", update);
     return () => {
-      if (mql.removeEventListener) mql.removeEventListener("change", update);
-      else mql.removeListener?.(update);
-      window.removeEventListener("resize", update);
+      if ("removeEventListener" in mql) {
+        mql.removeEventListener("change", update);
+      } else {
+        // @ts-expect-error legacy Safari
+        mql.removeListener(update);
+      }
     };
   }, []);
 
@@ -60,7 +80,7 @@ export function ResponsiveLayout({
       <div className="min-h-[100svh] flex flex-col bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
         <TopNavigation
           currentView={currentView}
-          setCurrentView={setCurrentView}
+          setCurrentView={forwardSetCurrentView}
           isDarkMode={isDarkMode}
           setIsDarkMode={setIsDarkMode}
           bonkData={bonkData}
@@ -75,7 +95,7 @@ export function ResponsiveLayout({
           {children}
         </main>
 
-        <MobileNavigation currentView={currentView} setCurrentView={setCurrentView} />
+        <MobileNavigation currentView={currentView} setCurrentView={forwardSetCurrentView} />
       </div>
     );
   }
@@ -86,14 +106,14 @@ export function ResponsiveLayout({
       <div className="min-h-[100svh] flex w-full bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
         <AppSidebar
           currentView={currentView}
-          setCurrentView={setCurrentView}
+          setCurrentView={forwardSetCurrentView}
           bonkData={bonkData}
           onStartTour={handleStartTour}
         />
         <SidebarInset className="flex min-h-[100svh] flex-1 flex-col">
           <TopNavigation
             currentView={currentView}
-            setCurrentView={setCurrentView}
+            setCurrentView={forwardSetCurrentView}
             isDarkMode={isDarkMode}
             setIsDarkMode={setIsDarkMode}
             bonkData={bonkData}
@@ -106,6 +126,6 @@ export function ResponsiveLayout({
       </div>
     </SidebarProvider>
   );
-}
+};
 
 export default ResponsiveLayout;

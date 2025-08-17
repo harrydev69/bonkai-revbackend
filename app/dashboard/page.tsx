@@ -93,7 +93,7 @@ function DashboardBody({
       case "search":
         return <MetaSearchDashboard bonkData={safeBonk} />
       case "sentiment":
-        return <SentimentDashboard bonkData={safeBonk} />
+        return <SentimentDashboard />
       case "mindshare":
         return <MindshareTracker />
       case "alerts":

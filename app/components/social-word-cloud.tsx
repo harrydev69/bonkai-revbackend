@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MessageSquare, TrendingUp, Hash, Users, Globe, RefreshCw } from "lucide-react"
-import type { BonkData } from "../page"
+import type { BonkData } from "../context/bonk-context"
 
 interface WordData {
   word: string
@@ -334,4 +334,3 @@ export function SocialWordCloud({ bonkData }: SocialWordCloudProps) {
     </Card>
   )
 }
-

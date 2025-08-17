@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,135 +9,244 @@ import { Progress } from "@/components/ui/progress"
 import { TrendingUp, TrendingDown, Flame, Users, MessageCircle, Share2 } from "lucide-react"
 import type { BonkData } from "../dashboard/page"
 
+// -------------------------------
+// Types
+// -------------------------------
 interface NarrativeTrackerProps {
-  bonkData: BonkData
+  bonkData?: BonkData
 }
+
+type Sentiment = "bullish" | "bearish" | "neutral"
+type Trend = "up" | "down" | "stable"
 
 interface Narrative {
   id: string
   title: string
   description: string
-  sentiment: "bullish" | "bearish" | "neutral"
-  strength: number
+  sentiment: Sentiment
+  strength: number // 0..100
   mentions: number
-  engagement: number
-  trend: "up" | "down" | "stable"
+  engagement: number // average engagement per mention (rounded)
+  trend: Trend
   tags: string[]
   sources: string[]
   timeframe: string
 }
 
+// Feed item shape (tolerant to different API versions)
+type FeedItem = {
+  text?: string
+  title?: string
+  tags?: string[] | string
+  platform?: string
+
+  // engagement-ish fields (various APIs)
+  likes?: number
+  like_count?: number
+  shares?: number
+  retweet_count?: number
+  quote_count?: number
+  comments?: number
+  reply_count?: number
+
+  // sentiment can be -1..1 or a score we’ll normalize heuristically
+  sentiment?: number
+  average_sentiment?: number
+
+  // timestamps (multiple forms)
+  timestamp?: number | string
+  time?: number | string
+  created_at?: number | string
+  created?: number | string
+}
+
+// -------------------------------
+// Helpers
+// -------------------------------
+function classifySentiment(n: number): Sentiment {
+  if (n > 0.1) return "bullish"
+  if (n < -0.1) return "bearish"
+  return "neutral"
+}
+
+function parseTimestamp(post: Partial<FeedItem>): number {
+  // supports unix seconds, unix ms, or ISO strings
+  const raw = post?.timestamp ?? post?.time ?? post?.created_at ?? post?.created ?? null
+  if (raw == null) return Date.now()
+  if (typeof raw === "number") return raw < 1e12 ? raw * 1000 : raw
+  const n = Number(raw)
+  if (!Number.isNaN(n)) return n < 1e12 ? n * 1000 : n
+  const d = Date.parse(String(raw))
+  return Number.isNaN(d) ? Date.now() : d
+}
+
+function timeframeFromTimestamps(timestamps: number[]) {
+  if (!timestamps.length) return "recent"
+  const last = Math.max(...timestamps)
+  const diffH = Math.max(0, Math.floor((Date.now() - last) / 3_600_000))
+  return diffH < 24 ? `${diffH}h` : `${Math.floor(diffH / 24)}d`
+}
+
+function getSentimentBadge(s: Sentiment) {
+  switch (s) {
+    case "bullish":
+      return "default"
+    case "bearish":
+      return "destructive"
+    case "neutral":
+      return "secondary"
+    default:
+      return "outline"
+  }
+}
+
+function getTrendIcon(t: Trend): JSX.Element {
+  switch (t) {
+    case "up":
+      return <TrendingUp className="w-4 h-4 text-green-500" />
+    case "down":
+      return <TrendingDown className="w-4 h-4 text-red-500" />
+    case "stable":
+      return <span className="inline-block w-4 h-4 bg-yellow-500 rounded-full" />
+  }
+}
+
+// Build narratives from social feeds
+function buildNarratives(feeds: FeedItem[]): Narrative[] {
+  // Group by hashtag (case-insensitive)
+  const groups: Record<
+    string,
+    { mentions: number; engagement: number; sentimentSum: number; sources: Set<string>; timestamps: number[] }
+  > = {}
+
+  for (const p of feeds) {
+    const text: string = p.text || p.title || ""
+    // tags from explicit field or infer from text
+    const explicitTags = Array.isArray(p.tags)
+      ? p.tags
+      : typeof p.tags === "string"
+      ? p.tags.split(",").map((t) => t.trim())
+      : []
+    const inferredTags = text.match(/#\w+/g) ?? []
+    const tags: string[] = Array.from(new Set([...explicitTags, ...inferredTags])).map((t) => String(t).toLowerCase())
+    if (!tags.length) continue
+
+    const likes = Number(p.likes ?? p.like_count ?? 0)
+    const shares = Number(p.shares ?? p.retweet_count ?? p.quote_count ?? 0)
+    const comments = Number(p.comments ?? p.reply_count ?? 0)
+    const engage = Math.max(0, likes + shares + comments)
+
+    const sentRaw = Number(p.sentiment ?? p.average_sentiment ?? 0)
+    const sent = Number.isFinite(sentRaw) ? sentRaw : 0
+    const ts = parseTimestamp(p)
+
+    for (const raw of tags) {
+      const tag = raw.startsWith("#") ? raw : `#${raw}`
+      if (!groups[tag]) {
+        groups[tag] = { mentions: 0, engagement: 0, sentimentSum: 0, sources: new Set(), timestamps: [] }
+      }
+      groups[tag].mentions += 1
+      groups[tag].engagement += engage
+      groups[tag].sentimentSum += sent
+      if (p.platform) groups[tag].sources.add(String(p.platform))
+      groups[tag].timestamps.push(ts)
+    }
+  }
+
+  // normalized strength (0–100) by avg engagement per mention
+  const perTagAvg = Object.fromEntries(
+    Object.entries(groups).map(([tag, g]) => [tag, g.mentions ? g.engagement / g.mentions : 0])
+  )
+  const maxAvg = Math.max(1, ...Object.values(perTagAvg))
+
+  const list: Narrative[] = Object.entries(groups).map(([tag, g], i) => {
+    const avgEngage = g.mentions ? g.engagement / g.mentions : 0
+    const avgSent = g.mentions ? g.sentimentSum / g.mentions : 0
+    const sentiment = classifySentiment(avgSent)
+    const strength = Math.round((avgEngage / maxAvg) * 100)
+    // Simple trend heuristic: strength buckets
+    const trend: Trend = strength >= 60 ? "up" : strength <= 30 ? "down" : "stable"
+    const tf = timeframeFromTimestamps(g.timestamps)
+
+    return {
+      id: String(i + 1),
+      title: tag.replace(/^#/, "").replace(/[-_]/g, " ").toUpperCase(),
+      description: `Conversation around ${tag.toUpperCase()} with ${g.mentions} mentions in the observed window.`,
+      sentiment,
+      strength,
+      mentions: g.mentions,
+      engagement: Math.round(avgEngage),
+      trend,
+      tags: [tag.replace(/^#/, "")],
+      sources: Array.from(g.sources),
+      timeframe: tf,
+    }
+  })
+
+  // Sort by strength (desc) and limit to top 12 for UI sanity
+  return list.sort((a, b) => b.strength - a.strength).slice(0, 12)
+}
+
+// -------------------------------
+// Component
+// -------------------------------
 export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
-  const narratives: Narrative[] = [
-    {
-      id: "1",
-      title: "BONK Ecosystem Expansion",
-      description: "Growing adoption of BONK across DeFi protocols and gaming platforms on Solana",
-      sentiment: "bullish",
-      strength: 85,
-      mentions: 12400,
-      engagement: 89,
-      trend: "up",
-      tags: ["defi", "gaming", "adoption"],
-      sources: ["Twitter", "Discord", "Reddit", "Telegram"],
-      timeframe: "7 days",
-    },
-    {
-      id: "2",
-      title: "Solana Network Upgrades",
-      description: "Positive sentiment around Solana's performance improvements and reduced fees",
-      sentiment: "bullish",
-      strength: 78,
-      mentions: 8900,
-      engagement: 76,
-      trend: "up",
-      tags: ["solana", "upgrades", "performance"],
-      sources: ["Twitter", "Medium", "Discord"],
-      timeframe: "3 days",
-    },
-    {
-      id: "3",
-      title: "Meme Coin Market Rotation",
-      description: "Discussion about capital rotation from other meme coins into BONK",
-      sentiment: "bullish",
-      strength: 72,
-      mentions: 15600,
-      engagement: 82,
-      trend: "up",
-      tags: ["meme-coins", "rotation", "capital-flow"],
-      sources: ["Twitter", "Reddit", "TikTok"],
-      timeframe: "5 days",
-    },
-    {
-      id: "4",
-      title: "Regulatory Concerns",
-      description: "General crypto market uncertainty due to regulatory discussions",
-      sentiment: "bearish",
-      strength: 45,
-      mentions: 6700,
-      engagement: 34,
-      trend: "down",
-      tags: ["regulation", "uncertainty", "market"],
-      sources: ["News", "Twitter", "LinkedIn"],
-      timeframe: "2 days",
-    },
-    {
-      id: "5",
-      title: "Community Building Initiatives",
-      description: "Strong community engagement through events, contests, and educational content",
-      sentiment: "bullish",
-      strength: 91,
-      mentions: 18200,
-      engagement: 94,
-      trend: "up",
-      tags: ["community", "events", "education"],
-      sources: ["Discord", "Twitter", "YouTube"],
-      timeframe: "10 days",
-    },
-  ]
+  const [feeds, setFeeds] = useState<FeedItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const getSentimentColor = (sentiment: Narrative["sentiment"]) => {
-    switch (sentiment) {
-      case "bullish":
-        return "text-green-500"
-      case "bearish":
-        return "text-red-500"
-      case "neutral":
-        return "text-yellow-500"
-      default:
-        return "text-gray-500"
+  useEffect(() => {
+    let active = true
+    async function load() {
+      try {
+        const res = await fetch("/api/feeds/bonk?limit=200", { cache: "no-store" })
+        const json: unknown = await res.json().catch(() => ({}))
+        if (!active) return
+        const arr =
+          (json as any)?.feeds && Array.isArray((json as any).feeds)
+            ? ((json as any).feeds as FeedItem[])
+            : (json as any)?.data && Array.isArray((json as any).data)
+            ? ((json as any).data as FeedItem[])
+            : []
+        setFeeds(arr)
+      } catch (e) {
+        console.error("Narrative feeds error:", e)
+      } finally {
+        if (active) setLoading(false)
+      }
     }
-  }
-
-  const getSentimentBadge = (sentiment: Narrative["sentiment"]) => {
-    switch (sentiment) {
-      case "bullish":
-        return "default"
-      case "bearish":
-        return "destructive"
-      case "neutral":
-        return "secondary"
-      default:
-        return "outline"
+    load()
+    return () => {
+      active = false
     }
-  }
+  }, [])
 
-  const getTrendIcon = (trend: Narrative["trend"]) => {
-    switch (trend) {
-      case "up":
-        return <TrendingUp className="w-4 h-4 text-green-500" />
-      case "down":
-        return <TrendingDown className="w-4 h-4 text-red-500" />
-      case "stable":
-        return <div className="w-4 h-4 bg-yellow-500 rounded-full" />
-      default:
-        return null
-    }
-  }
+  const narratives = useMemo(() => buildNarratives(feeds), [feeds])
+  const topNarratives = useMemo(() => [...narratives].sort((a, b) => b.strength - a.strength).slice(0, 3), [narratives])
+  const bullishNarratives = useMemo(() => narratives.filter((n) => n.sentiment === "bullish"), [narratives])
+  const bearishNarratives = useMemo(() => narratives.filter((n) => n.sentiment === "bearish"), [narratives])
 
-  const topNarratives = narratives.sort((a, b) => b.strength - a.strength).slice(0, 3)
-  const bullishNarratives = narratives.filter((n) => n.sentiment === "bullish")
-  const bearishNarratives = narratives.filter((n) => n.sentiment === "bearish")
+  const dominant = topNarratives[0]
+  const totalMentions = narratives.reduce((sum, n) => sum + n.mentions, 0)
+  const avgEngagement = narratives.length
+    ? Math.round(narratives.reduce((sum, n) => sum + n.engagement, 0) / narratives.length)
+    : 0
+  const bullishPct = narratives.length ? Math.round((bullishNarratives.length / narratives.length) * 100) : 0
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Narrative Tracker</h1>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-pulse">
+          <Card><CardHeader /><CardContent className="h-24" /></Card>
+          <Card><CardHeader /><CardContent className="h-24" /></Card>
+          <Card><CardHeader /><CardContent className="h-24" /></Card>
+          <Card><CardHeader /><CardContent className="h-24" /></Card>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -153,10 +263,12 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
             <Flame className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Community Building</div>
+            <div className="text-2xl font-bold">{dominant ? dominant.title : "—"}</div>
             <div className="flex items-center text-xs text-muted-foreground">
               <TrendingUp className="w-3 h-3 mr-1 text-green-500" />
-              <span className="text-green-500">91% strength</span>
+              <span className={dominant ? "text-green-500" : ""}>
+                {dominant ? `${dominant.strength}% strength` : "awaiting data"}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -167,10 +279,8 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
             <MessageCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {narratives.reduce((sum, n) => sum + n.mentions, 0).toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">Last 7 days</p>
+            <div className="text-2xl font-bold">{totalMentions.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Observed window</p>
           </CardContent>
         </Card>
 
@@ -180,10 +290,8 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {Math.round(narratives.reduce((sum, n) => sum + n.engagement, 0) / narratives.length)}%
-            </div>
-            <p className="text-xs text-muted-foreground">Community interaction</p>
+            <div className="text-2xl font-bold">{avgEngagement}%</div>
+            <p className="text-xs text-muted-foreground">Per-narrative average</p>
           </CardContent>
         </Card>
 
@@ -193,9 +301,7 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">
-              {Math.round((bullishNarratives.length / narratives.length) * 100)}%
-            </div>
+            <div className="text-2xl font-bold text-green-500">{bullishPct}%</div>
             <p className="text-xs text-muted-foreground">Of all narratives</p>
           </CardContent>
         </Card>
@@ -265,11 +371,15 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <span>Sources:</span>
-                        {narrative.sources.map((source, idx) => (
-                          <Badge key={source} variant="secondary" className="text-xs">
-                            {source}
-                          </Badge>
-                        ))}
+                        {narrative.sources.length ? (
+                          narrative.sources.map((source) => (
+                            <Badge key={source} variant="secondary" className="text-xs">
+                              {source}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs">Various</span>
+                        )}
                       </div>
                       <Button variant="ghost" size="sm">
                         <Share2 className="w-4 h-4 mr-2" />
@@ -279,6 +389,7 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
                     {index < topNarratives.length - 1 && <div className="border-b" />}
                   </div>
                 ))}
+                {!topNarratives.length && <div className="text-sm text-muted-foreground">No trending narratives yet.</div>}
               </div>
             </CardContent>
           </Card>
@@ -327,6 +438,7 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
                 </CardContent>
               </Card>
             ))}
+            {!bullishNarratives.length && <div className="text-sm text-muted-foreground">No bullish narratives yet.</div>}
           </div>
         </TabsContent>
 
@@ -373,6 +485,7 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
                 </CardContent>
               </Card>
             ))}
+            {!bearishNarratives.length && <div className="text-sm text-muted-foreground">No bearish narratives yet.</div>}
           </div>
         </TabsContent>
 
@@ -419,10 +532,10 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
                 </CardContent>
               </Card>
             ))}
+            {!narratives.length && <div className="text-sm text-muted-foreground">No narratives found.</div>}
           </div>
         </TabsContent>
       </Tabs>
     </div>
   )
 }
-

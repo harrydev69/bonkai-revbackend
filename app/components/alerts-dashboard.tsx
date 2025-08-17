@@ -1,5 +1,6 @@
 "use client"
 
+import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,9 +9,20 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Bell, Plus, TrendingUp, Volume2, Users, Clock, AlertTriangle, CheckCircle, Edit, Trash2 } from "lucide-react"
+import {
+  Bell,
+  Plus,
+  TrendingUp,
+  Volume2,
+  Users,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  Edit,
+  Trash2,
+} from "lucide-react"
 import { LoadingSkeleton } from "./loading-skeleton"
-import { EmptyState } from "./empty-state"
+// import { EmptyState } from "./empty-state" // removed to avoid required `type` prop mismatch
 import { ConfirmationDialog } from "./confirmation-dialog"
 import { dataService } from "../services/data-service"
 import { toast } from "@/hooks/use-toast"
@@ -29,22 +41,28 @@ interface Alert {
   createdAt: string
 }
 
-interface AlertsDashboardProps {
+export interface AlertsDashboardProps {
   bonkData: BonkData
 }
 
-export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
+export const AlertsDashboard: React.FC<AlertsDashboardProps> = ({ bonkData: _bonkData }) => {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
-  const [newAlert, setNewAlert] = useState({
+  const [newAlert, setNewAlert] = useState<{
+    name: string
+    type: Alert["type"]
+    condition: string
+    value: string
+    priority: Alert["priority"]
+  }>({
     name: "",
-    type: "price" as Alert["type"],
+    type: "price",
     condition: "",
     value: "",
-    priority: "medium" as Alert["priority"],
+    priority: "medium",
   })
 
   useEffect(() => {
@@ -126,10 +144,10 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
       setAlerts((prev) => [alert, ...prev])
       setNewAlert({ name: "", type: "price", condition: "", value: "", priority: "medium" })
 
+      // use default variant (allowed)
       toast({
         title: "Alert Created",
         description: `${alert.name} has been created successfully`,
-        variant: "success",
       })
     } catch (error) {
       console.error("Failed to create alert:", error)
@@ -146,11 +164,6 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
   const exportAlerts = async () => {
     try {
       await dataService.exportData("json", alerts, "bonkai-alerts")
-      toast({
-        title: "Export Successful",
-        description: "Alerts exported successfully",
-        variant: "success",
-      })
     } catch (error) {
       console.error("Failed to export alerts:", error)
       toast({
@@ -195,7 +208,7 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
   return (
     <div className="flex-1 overflow-y-auto h-full">
       <div className="w-full px-8 py-8 min-h-full">
-        {/* Header - Consistent with other dashboards */}
+        {/* Header */}
         <div className="flex items-center gap-6 mb-12">
           <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
             <Bell className="w-8 h-8 text-white" />
@@ -208,7 +221,7 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
           </div>
         </div>
 
-        {/* Alert Metrics Cards - Consistent layout */}
+        {/* Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           <Card className="border-orange-200/50 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
             <CardContent className="p-8">
@@ -259,7 +272,7 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
           </Card>
         </div>
 
-        {/* Main Alerts Container - Matching AI Copilot exact dimensions */}
+        {/* Main */}
         <Card className="border-orange-200/50 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-lg">
           <CardHeader className="border-b border-orange-200/50 dark:border-gray-700/50 p-6">
             <div className="flex items-center justify-between">
@@ -281,7 +294,7 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
             </div>
           </CardHeader>
 
-          {/* Fixed Height Content Area - Matching AI Copilot exactly */}
+          {/* Content area */}
           <div className="h-[600px] flex flex-col">
             <div className="flex-1 overflow-y-auto p-6">
               <Tabs defaultValue="active" className="w-full">
@@ -306,10 +319,16 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
                         <LoadingSkeleton />
                       </>
                     ) : alerts.length === 0 ? (
-                      <EmptyState
-                        title="No alerts created"
-                        description="Create your first alert to start monitoring BONK"
-                      />
+                      // Inline empty state
+                      <div className="col-span-full">
+                        <div className="flex flex-col items-center justify-center border rounded-xl py-12 text-center">
+                          <Bell className="w-10 h-10 text-gray-400 mb-3" />
+                          <h3 className="text-xl font-semibold mb-1">No alerts created</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Create your first alert to start monitoring BONK.
+                          </p>
+                        </div>
+                      </div>
                     ) : (
                       alerts.map((alert) => {
                         const AlertIcon = getAlertIcon(alert.type)
@@ -324,13 +343,15 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-4">
                                   <div
-                                    className={`w-12 h-12 rounded-xl ${getPriorityColor(alert.priority)} flex items-center justify-center shadow-sm`}
+                                    className={`w-12 h-12 rounded-xl ${getPriorityColor(
+                                      alert.priority
+                                    )} flex items-center justify-center shadow-sm`}
                                   >
                                     <AlertIcon className="w-6 h-6 text-white" />
                                   </div>
                                   <div>
                                     <CardTitle className="text-xl">{alert.name}</CardTitle>
-                                    <Badge variant="outline" className="text-sm mt-2">
+                                    <Badge variant="outline" className="text-sm mt-2 capitalize">
                                       {alert.type}
                                     </Badge>
                                   </div>
@@ -465,14 +486,25 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
                         />
                       </div>
 
-                      <Button
-                        onClick={createAlert}
-                        disabled={creating}
-                        className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white h-12 text-base"
-                      >
-                        <Plus className="w-5 h-5 mr-2" />
-                        Create Alert
-                      </Button>
+                      <div className="flex gap-3">
+                        <Button
+                          onClick={createAlert}
+                          disabled={creating}
+                          className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white h-12 text-base"
+                        >
+                          <Plus className="w-5 h-5 mr-2" />
+                          {creating ? "Creating..." : "Create Alert"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            setNewAlert({ name: "", type: "price", condition: "", value: "", priority: "medium" })
+                          }
+                          className="h-12 text-base"
+                        >
+                          Reset
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
@@ -497,7 +529,9 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
 
       <ConfirmationDialog
         open={!!deleteConfirm}
-        onClose={() => setDeleteConfirm(null)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteConfirm(null)
+        }}
         onConfirm={() => deleteAlert(deleteConfirm!)}
         title="Delete Alert"
         description="Are you sure you want to delete this alert? This action cannot be undone."
@@ -505,4 +539,3 @@ export function AlertsDashboard({ bonkData }: AlertsDashboardProps) {
     </div>
   )
 }
-

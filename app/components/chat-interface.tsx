@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Bot, User, TrendingUp, DollarSign, BarChart3, MessageSquare } from "lucide-react"
-import type { BonkData } from "../dashboard/page"
+import { BonkData } from "../context/bonk-context"
 
 interface Message {
   id: string
@@ -46,7 +45,9 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
   ])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
+
+  // use a simple scrollable div instead of ScrollArea to keep typing simple & TS-safe
+  const scrollRef = useRef<HTMLDivElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const quickActions = [
@@ -57,10 +58,17 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
   ]
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages])
+
+  // abort any stream if component unmounts
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [])
 
   // Build API history; skip our initial greeting if it's first
   const toApiHistory = (): ChatMsg[] => {
@@ -99,14 +107,25 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stream: true, messages: history }),
+        body: JSON.stringify({
+          stream: true,
+          messages: history,
+          // you can include bonkData hints if your backend uses it
+          context: {
+            price: bonkData.price,
+            change24h: bonkData.change24h,
+            volume24h: bonkData.volume24h,
+            sentiment: bonkData.sentiment,
+          },
+        }),
         signal: abortRef.current.signal,
       })
 
       if (!res.ok) throw new Error(`chat ${res.status}`)
 
-      // If server happened to return JSON (non-stream), handle gracefully
       const ct = res.headers.get("content-type") || ""
+
+      // Fallback: non-stream JSON
       if (!res.body || !ct.includes("text/event-stream")) {
         const json = await res.json().catch(() => null as any)
         const full = json?.choices?.[0]?.message?.content ?? ""
@@ -169,7 +188,12 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
       setMessages((prev) => prev.filter((m) => m.id !== assistantId))
       setMessages((prev) => [
         ...prev,
-        { id: `${Date.now() + 2}`, sender: "ai", content: "Hmm, I couldn’t reach the AI right now. Please try again.", timestamp: new Date() },
+        {
+          id: `${Date.now() + 2}`,
+          sender: "ai",
+          content: "Hmm, I couldn’t reach the AI right now. Please try again.",
+          timestamp: new Date(),
+        },
       ])
     } finally {
       setIsLoading(false)
@@ -181,7 +205,7 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
     setTimeout(() => handleSendMessage(), 50)
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage()
@@ -195,12 +219,16 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
           <div className="flex items-center gap-3">
             <Avatar>
               <AvatarImage src="/images/bonkai-mascot.png" />
-              <AvatarFallback><Bot className="w-5 h-5" /></AvatarFallback>
+              <AvatarFallback>
+                <Bot className="w-5 h-5" />
+              </AvatarFallback>
             </Avatar>
             <div>
               <CardTitle className="flex items-center gap-2">
                 BONK AI Assistant
-                <Badge variant="secondary" className="text-xs">Live Data</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  Live Data
+                </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground">Real-time BONK ecosystem insights and analysis</p>
             </div>
@@ -208,23 +236,37 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col p-0">
-          <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+          {/* scrollable area */}
+          <div ref={scrollRef} className="flex-1 p-4 overflow-y-auto">
             <div className="space-y-4">
               {messages.map((message) => (
-                <div key={message.id} className={`flex gap-3 ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+                >
                   {message.sender === "ai" && (
                     <Avatar className="w-8 h-8">
                       <AvatarImage src="/images/bonkai-mascot.png" />
-                      <AvatarFallback><Bot className="w-4 h-4" /></AvatarFallback>
+                      <AvatarFallback>
+                        <Bot className="w-4 h-4" />
+                      </AvatarFallback>
                     </Avatar>
                   )}
-                  <div className={`max-w-[80%] rounded-lg p-3 ${message.sender === "user" ? "bg-primary text-primary-foreground ml-auto" : "bg-muted"}`}>
+                  <div
+                    className={`max-w-[80%] rounded-lg p-3 ${
+                      message.sender === "user"
+                        ? "bg-primary text-primary-foreground ml-auto"
+                        : "bg-muted"
+                    }`}
+                  >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     <p className="text-xs opacity-70 mt-1">{message.timestamp.toLocaleTimeString()}</p>
                   </div>
                   {message.sender === "user" && (
                     <Avatar className="w-8 h-8">
-                      <AvatarFallback><User className="w-4 h-4" /></AvatarFallback>
+                      <AvatarFallback>
+                        <User className="w-4 h-4" />
+                      </AvatarFallback>
                     </Avatar>
                   )}
                 </div>
@@ -233,7 +275,9 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
                 <div className="flex gap-3 justify-start">
                   <Avatar className="w-8 h-8">
                     <AvatarImage src="/images/bonkai-mascot.png" />
-                    <AvatarFallback><Bot className="w-4 h-4" /></AvatarFallback>
+                    <AvatarFallback>
+                      <Bot className="w-4 h-4" />
+                    </AvatarFallback>
                   </Avatar>
                   <div className="bg-muted rounded-lg p-3">
                     <div className="flex space-x-1">
@@ -245,7 +289,7 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Quick Actions */}
           <div className="border-t p-4">
