@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Send, Bot, User, TrendingUp, DollarSign, BarChart3, MessageSquare } from "lucide-react"
-import type { BonkData } from "../dashboard/page"
+import { BonkData } from "../context/bonk-context"
 
 interface Message {
   id: string

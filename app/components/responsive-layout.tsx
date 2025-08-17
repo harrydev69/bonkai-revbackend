@@ -1,3 +1,4 @@
+// app/components/responsive-layout.tsx
 "use client";
 
 import type React from "react";
@@ -6,7 +7,11 @@ import { TopNavigation } from "./top-navigation";
 import { AppSidebar } from "./app-sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { MobileNavigation } from "./mobile-navigation";
-import type { ViewType, BonkData } from "../dashboard/page";
+
+// ✅ Keep ViewType from page…
+import type { ViewType } from "../dashboard/page";
+// ✅ …but import BonkData from the context (not from page)
+import type { BonkData } from "../context/bonk-context";
 
 export interface ResponsiveLayoutProps {
   children: React.ReactNode;

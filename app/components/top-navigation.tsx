@@ -1,30 +1,60 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Search, Bell, Settings, User, Wallet, LogOut, Moon, Sun, ExternalLink } from "lucide-react"
-import { useWallet } from "./wallet-provider"
-import type { ViewType, BonkData } from "../dashboard/page"
+} from "@/components/ui/dropdown-menu";
+import {
+  Search,
+  Bell,
+  Settings,
+  User,
+  Wallet,
+  LogOut,
+  Moon,
+  Sun,
+  ExternalLink,
+  PlayCircle,
+} from "lucide-react";
+import { useWallet } from "./wallet-provider";
+
+// ✅ Types: ViewType from page, BonkData from context (not from page)
+import type { ViewType } from "../dashboard/page";
+import type { BonkData } from "../context/bonk-context";
+import { useBonk } from "../context/bonk-context";
 
 interface TopNavigationProps {
-  currentView: ViewType
-  setCurrentView: (view: ViewType) => void
-  isDarkMode: boolean
-  setIsDarkMode: (dark: boolean) => void
-  bonkData: BonkData
-  onStartTour: () => void
+  currentView: ViewType;
+  setCurrentView: (view: ViewType) => void;
+  isDarkMode: boolean;
+  setIsDarkMode: (dark: boolean) => void;
+  bonkData: BonkData;
+  onStartTour?: () => void;
+}
+
+function fmtUSD(value?: number, digits = 6): string {
+  if (value === undefined || value === null || isNaN(value)) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: value < 0.01 ? digits : 2,
+    maximumFractionDigits: digits,
+  }).format(value);
+}
+
+function fmtPct(value?: number, digits = 2): string {
+  if (value === undefined || value === null || isNaN(value)) return "—";
+  const s = value >= 0 ? "+" : "";
+  return `${s}${value.toFixed(digits)}%`;
 }
 
 export function TopNavigation({
@@ -35,87 +65,101 @@ export function TopNavigation({
   bonkData,
   onStartTour,
 }: TopNavigationProps) {
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState("");
   const [notifications] = useState([
     { id: 1, message: "BONK price alert triggered", type: "price" },
     { id: 2, message: "High volume detected", type: "volume" },
     { id: 3, message: "New narrative trending", type: "social" },
-  ])
-  const { isConnected, connectWallet, disconnectWallet, walletAddress } = useWallet()
+  ]);
+  const { isConnected, connectWallet, disconnectWallet, walletAddress } = useWallet();
+
+  // ✅ Read lastUpdated/loading from Bonk provider to show live status
+  const { lastUpdated, loading } = useBonk();
+  const updatedStr =
+    typeof lastUpdated === "number" ? new Date(lastUpdated).toLocaleTimeString() : "—";
+  const fresh =
+    typeof lastUpdated === "number" && Date.now() - lastUpdated < 120_000; // < 2 min looks “fresh”
 
   const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (searchQuery.trim()) {
-      console.log("Searching for:", searchQuery)
-      // Implement search functionality
-      setCurrentView("search")
+      setCurrentView("search");
     }
-  }
+  };
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 4)}...${address.slice(-4)}`
-  }
+  const formatAddress = (address: string) =>
+    `${address.slice(0, 4)}...${address.slice(-4)}`;
 
   const getPageTitle = () => {
     switch (currentView) {
       case "dashboard":
-        return "Dashboard"
+        return "Dashboard";
       case "chat":
-        return "AI Chat"
+        return "AI Chat";
       case "search":
-        return "Meta Search"
+        return "Meta Search";
       case "sentiment":
-        return "Sentiment Analysis"
+        return "Sentiment Analysis";
       case "mindshare":
-        return "Mindshare Analytics"
+        return "Mindshare Analytics";
       case "alerts":
-        return "Alerts"
+        return "Alerts";
       case "narrative":
-        return "Narrative Tracking"
+        return "Narrative Tracking";
       case "analytics":
-        return "Analytics"
+        return "Analytics";
       case "calendar":
-        return "Calendar"
+        return "Calendar";
       case "audio":
-        return "Audio Library"
+        return "Audio Library";
       case "profile":
-        return "Profile"
+        return "Profile";
       case "settings":
-        return "Settings"
+        return "Settings";
       case "faq":
-        return "FAQ"
+        return "FAQ";
       default:
-        return "Dashboard"
+        return "Dashboard";
     }
-  }
+  };
 
-  const handleNotificationClick = (notification: any) => {
-    // Navigate to alerts page when notification is clicked
-    setCurrentView("alerts")
-  }
+  const handleNotificationClick = (_notification: any) => {
+    setCurrentView("alerts");
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4">
-        {/* Left Section - Logo and Title */}
-        <div className="flex items-center space-x-4">
+      <div className="container flex h-16 items-center justify-between px-4 gap-3">
+        {/* Left: Logo + Title + Live status */}
+        <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">🧠</span>
             </div>
-            <div className="hidden sm:flex flex-col">
+            <div className="hidden sm:flex flex-col min-w-0">
               <span className="font-bold text-lg bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text text-transparent">
                 BONKai
               </span>
-              <span className="text-xs text-muted-foreground">{getPageTitle()}</span>
+              <span className="text-xs text-muted-foreground truncate">{getPageTitle()}</span>
             </div>
           </div>
+
+          {/* Live/Updated badge (hidden on smallest screens) */}
+          <Badge variant="outline" className="hidden sm:inline-flex items-center gap-2 ml-2">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                loading ? "bg-yellow-500" : fresh ? "bg-green-500" : "bg-zinc-400"
+              }`}
+              title={loading ? "Loading…" : fresh ? "Fresh data" : "Data older than 2m"}
+            />
+            {loading ? "Loading…" : `Updated ${updatedStr}`}
+          </Badge>
         </div>
 
-        {/* Center Section - Search Bar */}
-        <div className="flex-1 max-w-md mx-4">
+        {/* Center: Search */}
+        <div className="flex-1 max-w-md mx-2">
           <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               type="text"
               placeholder="Search tokens, wallets, transactions..."
@@ -126,9 +170,23 @@ export function TopNavigation({
           </form>
         </div>
 
-        {/* Right Section - Actions and Profile */}
+        {/* BONK mini ticker (hidden on very small screens) */}
+        <div className="hidden md:flex items-center">
+          <Badge variant="secondary" className="flex items-center gap-2">
+            <span className="font-medium">BONK</span>
+            <span>{fmtUSD(bonkData?.price, 6)}</span>
+            <span
+              className={(bonkData?.change24h ?? 0) >= 0 ? "text-green-600" : "text-red-600"}
+              title="24h change"
+            >
+              {fmtPct(bonkData?.change24h)}
+            </span>
+          </Badge>
+        </div>
+
+        {/* Right: actions */}
         <div className="flex items-center space-x-2">
-          {/* Social Media Links - Desktop Only */}
+          {/* Socials (desktop) */}
           <div className="hidden lg:flex items-center space-x-1">
             <Button variant="ghost" size="sm" asChild>
               <a
@@ -150,7 +208,7 @@ export function TopNavigation({
                 className="text-indigo-500 hover:text-indigo-600"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
                 </svg>
               </a>
             </Button>
@@ -167,6 +225,18 @@ export function TopNavigation({
               </a>
             </Button>
           </div>
+
+          {/* Product Tour */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onStartTour?.()}
+            title="Start product tour"
+            className="hidden sm:inline-flex"
+          >
+            <PlayCircle className="w-4 h-4 mr-2" />
+            Tour
+          </Button>
 
           {/* Theme Toggle */}
           <Button variant="ghost" size="sm" onClick={() => setIsDarkMode(!isDarkMode)}>
@@ -192,14 +262,14 @@ export function TopNavigation({
                   <p className="text-sm text-muted-foreground">No new notifications</p>
                 ) : (
                   <div className="space-y-2">
-                    {notifications.map((notification) => (
+                    {notifications.map((n) => (
                       <div
-                        key={notification.id}
+                        key={n.id}
                         className="p-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted"
-                        onClick={() => handleNotificationClick(notification)}
+                        onClick={() => handleNotificationClick(n)}
                       >
-                        <p className="text-sm">{notification.message}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{notification.type} alert</p>
+                        <p className="text-sm">{n.message}</p>
+                        <p className="text-xs text-muted-foreground capitalize">{n.type} alert</p>
                       </div>
                     ))}
                   </div>
@@ -213,7 +283,7 @@ export function TopNavigation({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* User Profile Dropdown */}
+          {/* User Profile */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
@@ -228,9 +298,11 @@ export function TopNavigation({
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <div className="flex items-center justify-start gap-2 p-2">
                 <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium text-sm">{isConnected ? "Connected" : "Not Connected"}</p>
+                  <p className="font-medium text-sm">
+                    {isConnected ? "Connected" : "Not Connected"}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    {isConnected ? formatAddress(walletAddress!) : "Connect your wallet"}
+                    {isConnected && walletAddress ? formatAddress(walletAddress) : "Connect your wallet"}
                   </p>
                 </div>
               </div>
@@ -279,6 +351,7 @@ export function TopNavigation({
         </div>
       </div>
     </header>
-  )
+  );
 }
 
+export default TopNavigation;
