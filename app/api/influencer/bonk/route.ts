@@ -1,7 +1,7 @@
 import { getCoinInfluencers } from "@/lib/lunarcrush";
 
 /**
- * GET /api/influencers/bonk
+ * GET /api/influencer/bonk
  *
  * Returns the top BONK influencers (creators) from LunarCrush. An optional
  * `limit` query parameter may be supplied to reduce the number of results.

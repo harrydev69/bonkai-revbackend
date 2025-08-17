@@ -408,51 +408,6 @@ export default function SentimentDashboard({
           <TabsTrigger value="influencers">Influencers</TabsTrigger>
           <TabsTrigger value="trends">Trends</TabsTrigger>
         </TabsList>
-
-        {/* Platforms */}
-        <TabsContent value="platforms" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Platform Sentiment Breakdown</CardTitle>
-              <CardDescription>Sentiment analysis across different social media platforms</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {platformRows.map((platform) => (
-                  <div key={platform.name} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">{platform.name[0]}</span>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">{platform.name}</h3>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>{platform.mentions.toLocaleString()} mentions</span>
-                            {platform.change && (
-                              <span className={platform.change.startsWith("+") ? "text-green-500" : "text-red-500"}>
-                                {platform.change}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Badge variant={getSentimentBadge(platform.sentiment)}>{platform.sentiment}</Badge>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Sentiment Score</span>
-                        <span>{platform.score}%</span>
-                      </div>
-                      <Progress value={platform.score} className="h-2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Keywords */}
         <TabsContent value="keywords" className="space-y-4">
           <Card>

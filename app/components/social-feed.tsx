@@ -1,31 +1,36 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { ExternalLink, MessageCircle, ThumbsUp, Repeat2 } from "lucide-react"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 
 type Post = {
-  id?: string | number
-  platform?: string
-  text?: string
-  title?: string
-  url?: string
-  handle?: string
-  username?: string
-  display_name?: string
-  creator_name?: string
-  creator_id?: string | number
-  sentiment?: number
-  likes?: number
-  retweets?: number
-  shares?: number
-  comments?: number
-  engagement?: number
-  timestamp?: number | string
-  image?: string
+  id: string
+  post_type: string
+  post_title: string
+  post_link: string
+  post_image: string | null
+  post_created: number
+  post_sentiment: number
+  creator_id: string
+  creator_name: string
+  creator_display_name: string
+  creator_followers: number
+  creator_avatar: string
+  interactions_24h: number
+  interactions_total: number
 }
 
 function sentimentBadge(v?: number) {
@@ -47,99 +52,53 @@ function humanTime(ts?: number | string) {
   return isNaN(d.getTime()) ? "" : d.toLocaleString()
 }
 
-function toArray(input: any): Post[] {
-  if (Array.isArray(input)) return input as Post[]
-  if (input && Array.isArray(input.feeds)) return input.feeds as Post[]
-  if (input && Array.isArray(input.data)) return input.data as Post[]
-  if (input && Array.isArray(input.items)) return input.items as Post[]
-  return []
-}
-
-function dedupeById(arr: Post[]): Post[] {
-  const seen = new Set<string>()
-  const out: Post[] = []
-  for (const p of arr) {
-    const id = String(p.id ?? p.creator_id ?? Math.random())
-    if (!seen.has(id)) {
-      seen.add(id)
-      out.push(p)
-    }
-  }
-  return out
-}
-
 export default function SocialFeed({
   limit = 30,
-  refreshMs = 45_000,
-  initialDelayMs,
 }: {
   limit?: number
-  refreshMs?: number
-  initialDelayMs?: number
 }) {
-  const [posts, setPosts] = useState<Post[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const postsPerPage = 10
 
-  const timerRef = useRef<number | null>(null)
-  const startedRef = useRef(false)
-
-  // small jitter to avoid multiple widgets fetching at the exact same moment
-  const jitter = initialDelayMs ?? 200 + Math.floor(Math.random() * 500)
-
-  const load = async (signal?: AbortSignal) => {
-    try {
-      setError(null)
+  const { data: rawData, isLoading, error } = useQuery({
+    queryKey: ["feeds", "bonk", limit],
+    queryFn: async () => {
       const res = await fetch(`/api/feeds/bonk?limit=${limit}`, {
         cache: "no-store",
-        signal,
       })
       if (!res.ok) {
         const body = await res.text().catch(() => "")
         throw new Error(`feeds ${res.status}: ${body || res.statusText}`)
       }
       const json = await res.json().catch(() => ({}))
-      const arr = dedupeById(toArray(json)).slice(0, limit)
-      setPosts(arr)
-    } catch (e: any) {
-      setError(String(e?.message ?? e))
-    } finally {
-      setLoading(false)
-    }
+      
+      // Extract posts from the response
+      let posts: Post[] = []
+      if (json.feeds && Array.isArray(json.feeds)) {
+        posts = json.feeds
+      } else if (json.data && Array.isArray(json.data)) {
+        posts = json.data
+      }
+      
+      return posts
+    },
+    staleTime: Infinity,
+  })
+
+  // Process the data
+  const posts = rawData || []
+  
+  // Calculate pagination
+  const totalPages = Math.ceil(posts.length / postsPerPage)
+  const indexOfLastPost = currentPage * postsPerPage
+  const indexOfFirstPost = indexOfLastPost - postsPerPage
+  const currentPosts = posts.slice(indexOfFirstPost, indexOfLastPost)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
   }
 
-  useEffect(() => {
-    const ac = new AbortController()
-
-    const kickOff = () => {
-      // stagger first call
-      window.setTimeout(() => load(ac.signal), jitter)
-      // periodic refresh (visibility-aware)
-      const tick = async () => {
-        if (document.visibilityState === "visible") await load()
-        timerRef.current = window.setTimeout(tick, refreshMs) as unknown as number
-      }
-      timerRef.current = window.setTimeout(tick, refreshMs) as unknown as number
-    }
-
-    if (!startedRef.current) {
-      startedRef.current = true
-      kickOff()
-    }
-
-    const onVis = () => {
-      if (document.visibilityState === "visible") void load()
-    }
-    document.addEventListener("visibilitychange", onVis)
-
-    return () => {
-      ac.abort()
-      if (timerRef.current) window.clearTimeout(timerRef.current)
-      document.removeEventListener("visibilitychange", onVis)
-    }
-  }, [limit, refreshMs, jitter])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader><CardTitle>Live BONK Social Feed</CardTitle></CardHeader>
@@ -156,7 +115,7 @@ export default function SocialFeed({
           <Badge variant="destructive">error</Badge>
         </CardHeader>
         <CardContent>
-          <div className="text-sm text-red-600">Feed unavailable: {error}</div>
+          <div className="text-sm text-red-600">Feed unavailable: {String(error)}</div>
         </CardContent>
       </Card>
     )
@@ -169,25 +128,21 @@ export default function SocialFeed({
         <Badge variant="outline">{posts.length} posts</Badge>
       </CardHeader>
       <CardContent className="space-y-4">
-        {posts.map((p, i) => {
-          const name =
-            p.display_name || p.creator_name || p.username || p.handle || "Creator"
-          const handle =
-            p.handle
-              ? (p.handle.startsWith("@") ? p.handle : `@${p.handle}`)
-              : (p.username ? `@${p.username}` : "")
-          const platform = (p.platform || "Social").toString()
-          const likeCount = Number(p.likes ?? 0)
-          const rtCount = Number(p.retweets ?? p.shares ?? 0)
-          const replyCount = Number(p.comments ?? 0)
-          const text = p.text || p.title || ""
-          const id = String(p.id ?? `p${i}`)
+        {currentPosts.map((p) => {
+          const name = p.creator_display_name || p.creator_name || "Creator"
+          const handle = p.creator_name ? `@${p.creator_name}` : ""
+          const platform = p.post_type || "Social"
+          const likeCount = 0 // Not provided in the API response
+          const rtCount = 0 // Not provided in the API response
+          const replyCount = 0 // Not provided in the API response
+          const text = p.post_title || ""
+          const id = String(p.id)
 
           return (
             <div key={id} className="p-4 border rounded-lg">
               <div className="flex items-start gap-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={p.image || ""} />
+                  <AvatarImage src={p.creator_avatar || ""} />
                   <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 space-y-2">
@@ -196,17 +151,19 @@ export default function SocialFeed({
                       <span className="font-semibold">{name}</span>
                       {handle && <span className="text-sm text-muted-foreground">{handle}</span>}
                       <Badge variant="secondary">{platform}</Badge>
-                      {sentimentBadge(p.sentiment)}
+                      {sentimentBadge(p.post_sentiment)}
                     </div>
-                    <span className="text-xs text-muted-foreground">{humanTime(p.timestamp)}</span>
+                    <span className="text-xs text-muted-foreground">{humanTime(p.post_created)}</span>
                   </div>
                   <p className="text-sm whitespace-pre-wrap">{text}</p>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" />{likeCount}</span>
                     <span className="flex items-center gap-1"><Repeat2 className="h-3 w-3" />{rtCount}</span>
                     <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" />{replyCount}</span>
-                    {p.url && (
-                      <a href={p.url} target="_blank" rel="noreferrer">
+                    <span className="flex items-center gap-1">Followers: {p.creator_followers}</span>
+                    <span className="flex items-center gap-1">Interactions: {p.interactions_24h}</span>
+                    {p.post_link && (
+                      <a href={p.post_link} target="_blank" rel="noreferrer">
                         <Button size="sm" variant="ghost" className="h-7 px-2">
                           <ExternalLink className="h-3 w-3 mr-1" /> Open
                         </Button>
@@ -219,6 +176,40 @@ export default function SocialFeed({
           )
         })}
         {!posts.length && <div className="text-sm text-muted-foreground">No recent posts found.</div>}
+        
+        {totalPages > 1 && (
+          <div className="mt-6">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      isActive={currentPage === page}
+                      onClick={() => handlePageChange(page)}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

@@ -2,6 +2,7 @@
 
 import { FC, ReactNode, useMemo } from "react";
 import { SWRConfig } from "swr";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { clusterApiUrl } from "@solana/web3.js";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import {
@@ -37,6 +38,8 @@ async function queuedFetcher(key: string) {
   return res.json();
 }
 
+const queryClient = new QueryClient();
+
 export const Providers: FC<ProvidersProps> = ({ children }) => {
   const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("mainnet-beta");
   const network = WalletAdapterNetwork.Mainnet;
@@ -47,24 +50,26 @@ export const Providers: FC<ProvidersProps> = ({ children }) => {
   );
 
   return (
-    <SWRConfig
-      value={{
-        fetcher: queuedFetcher,
-        // strong dedupe so identical keys within 15s collapse to 1 request
-        dedupingInterval: 15_000,
-        // avoid burst revalidations on focus/navigation
-        revalidateOnFocus: false,
-        revalidateOnReconnect: true,
-        focusThrottleInterval: 20_000,
-        // you can still set per-hook refreshInterval in components
-        shouldRetryOnError: false,
-      }}
-    >
-      <ConnectionProvider endpoint={endpoint}>
-        <SolanaWalletProvider wallets={wallets} autoConnect>
-          <WalletModalProvider>{children}</WalletModalProvider>
-        </SolanaWalletProvider>
-      </ConnectionProvider>
-    </SWRConfig>
+    <QueryClientProvider client={queryClient}>
+      <SWRConfig
+        value={{
+          fetcher: queuedFetcher,
+          // strong dedupe so identical keys within 15s collapse to 1 request
+          dedupingInterval: 15_000,
+          // avoid burst revalidations on focus/navigation
+          revalidateOnFocus: false,
+          revalidateOnReconnect: true,
+          focusThrottleInterval: 20_000,
+          // you can still set per-hook refreshInterval in components
+          shouldRetryOnError: false,
+        }}
+      >
+        <ConnectionProvider endpoint={endpoint}>
+          <SolanaWalletProvider wallets={wallets} autoConnect>
+            <WalletModalProvider>{children}</WalletModalProvider>
+          </SolanaWalletProvider>
+        </ConnectionProvider>
+      </SWRConfig>
+    </QueryClientProvider>
   );
 };
