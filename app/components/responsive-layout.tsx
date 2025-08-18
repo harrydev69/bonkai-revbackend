@@ -119,7 +119,7 @@ export const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({
             bonkData={bonkData}
             onStartTour={handleStartTour}
           />
-          <main className="flex-1 p-4 sm:p-6 overflow-x-hidden" id="dashboard-content">
+          <main className="flex-1 overflow-x-hidden" id="dashboard-content">
             {children}
           </main>
         </SidebarInset>

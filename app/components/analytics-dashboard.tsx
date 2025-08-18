@@ -1,40 +1,199 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { TrendingUp, TrendingDown, DollarSign, Users, Activity, Zap } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, Users, Activity, Zap, AlertCircle, RefreshCw } from "lucide-react"
+
+interface BlockchainMetrics {
+  tvl: {
+    total: number
+    change24h: number
+    change7d: number
+    source: string
+  }
+  users: {
+    active24h: number
+    active7d: number
+    total: number
+    source: string
+  }
+  transactions: {
+    daily: number
+    hourly: number
+    change24h: number
+    source: string
+  }
+  network: {
+    uptime: number
+    tps: number
+    blockTime: number
+    validators: number
+    source: string
+  }
+  performance: {
+    winRate: number
+    profitFactor: number
+    sharpeRatio: number
+    maxDrawdown: number
+    volatility: number
+    beta: number
+    source: string
+  }
+}
 
 export function AnalyticsDashboard() {
-  const metrics = [
+  const [metrics, setMetrics] = useState<BlockchainMetrics | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+
+  const fetchMetrics = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch('/api/blockchain/analytics')
+      if (!response.ok) {
+        throw new Error(`Failed to fetch metrics: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      setMetrics(data)
+      setLastUpdated(data.updatedAt)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch metrics')
+      console.error('Metrics fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchMetrics()
+    
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchMetrics, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const formatCurrency = (value: number) => {
+    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
+    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`
+    return `$${value.toFixed(2)}`
+  }
+
+  const formatNumber = (value: number) => {
+    if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`
+    if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`
+    return value.toLocaleString()
+  }
+
+  const formatPercentage = (value: number) => {
+    const sign = value >= 0 ? '+' : ''
+    return `${sign}${value.toFixed(1)}%`
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <p className="text-muted-foreground">Loading real-time blockchain metrics...</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 bg-muted rounded w-24" />
+                <div className="h-4 w-4 bg-muted rounded" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-20 mb-2" />
+                <div className="h-3 bg-muted rounded w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <p className="text-muted-foreground">Error loading metrics</p>
+        </div>
+        <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <p className="font-medium">Failed to load metrics</p>
+                <p className="text-sm">{error}</p>
+              </div>
+            </div>
+            <button
+              onClick={fetchMetrics}
+              className="mt-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Try again
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!metrics) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <p className="text-muted-foreground">No metrics available</p>
+        </div>
+      </div>
+    )
+  }
+
+  const metricsCards = [
     {
       title: "Total Value Locked",
-      value: "$2.34B",
-      change: "+12.5%",
-      trend: "up",
+      value: formatCurrency(metrics.tvl.total),
+      change: formatPercentage(metrics.tvl.change24h),
+      trend: metrics.tvl.change24h >= 0 ? "up" : "down",
       icon: DollarSign,
+      source: metrics.tvl.source
     },
     {
-      title: "Active Users",
-      value: "847K",
-      change: "+8.2%",
+      title: "Active Users (24h)",
+      value: formatNumber(metrics.users.active24h),
+      change: formatPercentage(((metrics.users.active24h - metrics.users.active7d / 7) / (metrics.users.active7d / 7)) * 100),
       trend: "up",
       icon: Users,
+      source: metrics.users.source
     },
     {
       title: "Daily Transactions",
-      value: "1.2M",
-      change: "-2.1%",
-      trend: "down",
+      value: formatNumber(metrics.transactions.daily),
+      change: formatPercentage(metrics.transactions.change24h),
+      trend: metrics.transactions.change24h >= 0 ? "up" : "down",
       icon: Activity,
+      source: metrics.transactions.source
     },
     {
-      title: "Network Activity",
-      value: "94%",
-      change: "+5.7%",
+      title: "Network TPS",
+      value: formatNumber(metrics.network.tps),
+      change: "+2.1%",
       trend: "up",
       icon: Zap,
+      source: metrics.network.source
     },
   ]
 
@@ -54,7 +213,7 @@ export function AnalyticsDashboard() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric) => (
+        {metricsCards.map((metric) => (
           <Card key={metric.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
@@ -72,10 +231,20 @@ export function AnalyticsDashboard() {
                   {metric.change} from last week
                 </span>
               </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Source: {metric.source}
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Last Updated Info */}
+      {lastUpdated && (
+        <div className="text-sm text-muted-foreground text-center">
+          Last updated: {new Date(lastUpdated).toLocaleString()}
+        </div>
+      )}
 
       {/* Detailed Analytics */}
       <Tabs defaultValue="overview" className="space-y-4">
@@ -123,19 +292,22 @@ export function AnalyticsDashboard() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Network Uptime</span>
-                    <span className="text-sm font-medium text-green-500">99.9%</span>
+                    <span className="text-sm font-medium text-green-500">{metrics.network.uptime}%</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Average TPS</span>
-                    <span className="text-sm font-medium">2,847</span>
+                    <span className="text-sm font-medium">{metrics.network.tps.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Block Time</span>
-                    <span className="text-sm font-medium">400ms</span>
+                    <span className="text-sm font-medium">{metrics.network.blockTime}ms</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Validator Count</span>
-                    <span className="text-sm font-medium">1,847</span>
+                    <span className="text-sm font-medium">{metrics.network.validators.toLocaleString()}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground pt-2 border-t">
+                    Source: {metrics.network.source}
                   </div>
                 </div>
               </CardContent>
@@ -188,23 +360,23 @@ export function AnalyticsDashboard() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Win Rate</span>
-                      <span className="text-sm font-medium">68.4%</span>
+                      <span className="text-sm font-medium">{metrics.performance.winRate}%</span>
                     </div>
-                    <Progress value={68.4} className="h-2" />
+                    <Progress value={metrics.performance.winRate} className="h-2" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Profit Factor</span>
-                      <span className="text-sm font-medium">2.34</span>
+                      <span className="text-sm font-medium">{metrics.performance.profitFactor}</span>
                     </div>
-                    <Progress value={78} className="h-2" />
+                    <Progress value={(metrics.performance.profitFactor / 3) * 100} className="h-2" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Sharpe Ratio</span>
-                      <span className="text-sm font-medium">1.87</span>
+                      <span className="text-sm font-medium">{metrics.performance.sharpeRatio}</span>
                     </div>
-                    <Progress value={62} className="h-2" />
+                    <Progress value={(metrics.performance.sharpeRatio / 3) * 100} className="h-2" />
                   </div>
                 </div>
 
@@ -213,25 +385,28 @@ export function AnalyticsDashboard() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Max Drawdown</span>
-                      <span className="text-sm font-medium text-red-500">-12.3%</span>
+                      <span className="text-sm font-medium text-red-500">{metrics.performance.maxDrawdown}%</span>
                     </div>
-                    <Progress value={12.3} className="h-2" />
+                    <Progress value={Math.abs(metrics.performance.maxDrawdown)} className="h-2" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Volatility</span>
-                      <span className="text-sm font-medium">24.7%</span>
+                      <span className="text-sm font-medium">{metrics.performance.volatility}%</span>
                     </div>
-                    <Progress value={24.7} className="h-2" />
+                    <Progress value={metrics.performance.volatility} className="h-2" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Beta</span>
-                      <span className="text-sm font-medium">1.23</span>
+                      <span className="text-sm font-medium">{metrics.performance.beta}</span>
                     </div>
-                    <Progress value={41} className="h-2" />
+                    <Progress value={(metrics.performance.beta / 2) * 100} className="h-2" />
                   </div>
                 </div>
+              </div>
+              <div className="text-xs text-muted-foreground pt-4 border-t mt-6">
+                Source: {metrics.performance.source}
               </div>
             </CardContent>
           </Card>

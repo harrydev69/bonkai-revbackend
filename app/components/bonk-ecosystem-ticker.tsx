@@ -24,7 +24,7 @@ const bonkFunEcosystemTokens: EcosystemToken[] = [
     change24h: 15.7,
     marketCap: 2340000000,
     volume24h: 145000000,
-    icon: "🐕",
+    icon: "",
     cmcId: "bonk",
   },
   {
@@ -57,7 +57,7 @@ const bonkFunEcosystemTokens: EcosystemToken[] = [
     change24h: 12.1,
     marketCap: 78000000,
     volume24h: 4500000,
-    icon: "🐕",
+    icon: "",
     cmcId: "samoyedcoin",
   },
   {
@@ -68,7 +68,7 @@ const bonkFunEcosystemTokens: EcosystemToken[] = [
     change24h: -5.7,
     marketCap: 34000000,
     volume24h: 1200000,
-    icon: "😤",
+    icon: "",
     cmcId: "cope",
   },
   {
@@ -79,7 +79,7 @@ const bonkFunEcosystemTokens: EcosystemToken[] = [
     change24h: 18.9,
     marketCap: 23000000,
     volume24h: 890000,
-    icon: "🪢",
+    icon: "",
     cmcId: "rope",
   },
   {
@@ -90,7 +90,7 @@ const bonkFunEcosystemTokens: EcosystemToken[] = [
     change24h: 7.3,
     marketCap: 56000000,
     volume24h: 2100000,
-    icon: "🐕",
+    icon: "",
     cmcId: "cheems",
   },
   {
@@ -101,7 +101,7 @@ const bonkFunEcosystemTokens: EcosystemToken[] = [
     change24h: -3.4,
     marketCap: 89000000,
     volume24h: 3400000,
-    icon: "🐕‍🦺",
+    icon: "",
     cmcId: "doge-killer",
   },
   {
@@ -112,7 +112,7 @@ const bonkFunEcosystemTokens: EcosystemToken[] = [
     change24h: 9.8,
     marketCap: 67000000,
     volume24h: 2800000,
-    icon: "🐕",
+    icon: "",
     cmcId: "floki",
   },
   {
@@ -123,7 +123,7 @@ const bonkFunEcosystemTokens: EcosystemToken[] = [
     change24h: 14.2,
     marketCap: 15000000,
     volume24h: 670000,
-    icon: "🦈",
+    icon: "",
     cmcId: "shiba-predator",
   },
 ]

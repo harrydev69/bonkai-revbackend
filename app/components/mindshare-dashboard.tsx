@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { MindshareRadarChart } from "./mindshare-radar-chart"
 // ✅ default import to match the module’s export shape
-import SocialWordCloud from "./social-word-cloud"
+import { SocialWordCloud } from "./social-word-cloud"
 
 type SentimentTag = "positive" | "neutral" | "negative"
 
@@ -130,7 +130,9 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
     timer = window.setTimeout(tick, refreshMs)
 
     const onVis = () => {
-      if (document.visibilityState === "visible") void loadOnce()
+      if (document.visibilityState === "visible") {
+        loadOnce().catch(e => console.warn("Mindshare visibility change error:", e))
+      }
     }
     document.addEventListener("visibilitychange", onVis)
 
@@ -148,14 +150,24 @@ export function MindshareTracker({ refreshMs = 30_000 }: { refreshMs?: number } 
       if (!url) return
       try {
         const ws = new WebSocket(url)
+        
+        ws.onerror = (error) => {
+          console.warn("WebSocket error:", error)
+        }
+        
+        ws.onclose = (event) => {
+          console.warn("WebSocket closed:", event.code, event.reason)
+        }
+        
         ws.onmessage = (evt) => {
           try {
             const payload = JSON.parse(evt.data)
             onMsg?.(payload)
-          } catch {
-            /* ignore non-JSON */
+          } catch (error) {
+            console.warn("WebSocket message parse error:", error)
           }
         }
+        
         sockets.push(ws)
       } catch (e) {
         console.warn("WS connect failed:", e)

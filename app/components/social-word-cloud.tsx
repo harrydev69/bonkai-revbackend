@@ -17,17 +17,21 @@ interface WordData {
 }
 
 interface SocialWordCloudProps {
-  bonkData: BonkData
+  bonkData?: BonkData
 }
 
-export function SocialWordCloud({ bonkData }: SocialWordCloudProps) {
+export function SocialWordCloud({ bonkData }: SocialWordCloudProps = {}) {
   const [timeframe, setTimeframe] = useState("24h")
   const [platform, setPlatform] = useState("all")
   const [wordData, setWordData] = useState<WordData[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
-    generateWordCloud()
+    try {
+      generateWordCloud()
+    } catch (error) {
+      console.error("Error generating word cloud:", error)
+    }
   }, [timeframe, platform])
 
   const generateWordCloud = () => {
@@ -171,7 +175,17 @@ export function SocialWordCloud({ bonkData }: SocialWordCloudProps) {
                 <SelectItem value="7d">7 Days</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={refreshWordCloud} disabled={isRefreshing}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                refreshWordCloud().catch(error => {
+                  console.error("Failed to refresh word cloud:", error)
+                  setIsRefreshing(false)
+                })
+              }} 
+              disabled={isRefreshing}
+            >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
             </Button>
           </div>

@@ -296,14 +296,14 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
         <table className="w-full text-sm">
           <thead className="text-muted-foreground sticky top-0 bg-background">
             <tr>
-              <th className="text-left py-2 px-2">Rank</th>
-              <th className="text-left py-2 px-2">Token</th>
-              <th className="text-right py-2 px-2">Price</th>
-              <th className="text-right py-2 px-2">1h</th>
-              <th className="text-right py-2 px-2">24h</th>
-              <th className="text-right py-2 px-2">7d</th>
-              <th className="text-right py-2 px-2">Volume (24h)</th>
-              <th className="text-right py-2 px-2">Market Cap</th>
+              <th className="text-left py-3 px-4 w-16">Rank</th>
+              <th className="text-left py-3 px-4 w-48">Token</th>
+              <th className="text-right py-3 px-4 w-24">Price</th>
+              <th className="text-right py-3 px-4 w-20">1h</th>
+              <th className="text-right py-3 px-4 w-20">24h</th>
+              <th className="text-right py-3 px-4 w-20">7d</th>
+              <th className="text-right py-3 px-4 w-32">Volume (24h)</th>
+              <th className="text-right py-3 px-4 w-32">Market Cap</th>
             </tr>
           </thead>
           <tbody>
@@ -313,8 +313,8 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
               const up7 = (t.change7d ?? 0) >= 0;
               return (
                 <tr key={t.id} className="border-t hover:bg-muted/30">
-                  <td className="py-2 px-2">#{i + 1}</td>
-                  <td className="py-2 px-2">
+                  <td className="py-3 px-4">#{i + 1}</td>
+                  <td className="py-3 px-4">
                     <Link
                       href={`/token/${t.id}`}
                       prefetch={false}
@@ -347,34 +347,34 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
                       </span>
                     </Link>
                   </td>
-                  <td className="text-right py-2 px-2">
+                  <td className="text-right py-3 px-4">
                     {formatPrice(t.price)}
                   </td>
                   <td
-                    className={`text-right py-2 px-2 ${
+                    className={`text-right py-3 px-4 ${
                       up1 ? "text-green-600" : "text-red-600"
                     }`}
                   >
                     {t.change1h == null ? "—" : `${t.change1h.toFixed(2)}%`}
                   </td>
                   <td
-                    className={`text-right py-2 px-2 ${
+                    className={`text-right py-3 px-4 ${
                       up24 ? "text-green-600" : "text-red-600"
                     }`}
                   >
                     {t.change24h == null ? "—" : `${t.change24h.toFixed(2)}%`}
                   </td>
                   <td
-                    className={`text-right py-2 px-2 ${
+                    className={`text-right py-3 px-4 ${
                       up7 ? "text-green-600" : "text-red-600"
                     }`}
                   >
                     {t.change7d == null ? "—" : `${t.change7d.toFixed(2)}%`}
                   </td>
-                  <td className="text-right py-2 px-2">
+                  <td className="text-right py-3 px-4">
                     {formatVolume(t.volume)}
                   </td>
-                  <td className="text-right py-2 px-2">
+                  <td className="text-right py-3 px-4">
                     {formatMarketCap(t.marketCap)}
                   </td>
                 </tr>
