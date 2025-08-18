@@ -99,7 +99,7 @@ export function AnalyticsDashboard() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <div>
           <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
           <p className="text-muted-foreground">Loading real-time blockchain metrics...</p>
@@ -124,7 +124,7 @@ export function AnalyticsDashboard() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <div>
           <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
           <p className="text-muted-foreground">Error loading metrics</p>
@@ -153,7 +153,7 @@ export function AnalyticsDashboard() {
 
   if (!metrics) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <div>
           <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
           <p className="text-muted-foreground">No metrics available</p>
@@ -205,7 +205,7 @@ export function AnalyticsDashboard() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
         <p className="text-muted-foreground">Comprehensive analytics and insights for the BONK ecosystem</p>

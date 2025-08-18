@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { TrendingUp, TrendingDown, Flame, Users, MessageCircle, Share2 } from "lucide-react"
-import type { BonkData } from "../dashboard/page"
+import type { BonkData } from "../context/bonk-context"
 
 // -------------------------------
 // Types
@@ -234,7 +234,7 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <div>
           <h1 className="text-3xl font-bold">Narrative Tracker</h1>
         </div>
@@ -249,7 +249,7 @@ export function NarrativeTracker({ bonkData }: NarrativeTrackerProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Narrative Tracker</h1>
         <p className="text-muted-foreground">Track dominant narratives and sentiment trends in the BONK ecosystem</p>

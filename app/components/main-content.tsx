@@ -397,7 +397,7 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
   };
 
   return (
-    <div className="flex-1 space-y-6 p-6">
+    <div className="flex-1 space-y-6" style={{ padding: '24px', paddingRight: '80px', border: '2px solid transparent' }}>
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div>

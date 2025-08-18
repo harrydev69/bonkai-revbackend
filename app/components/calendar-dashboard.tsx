@@ -218,28 +218,28 @@ export function CalendarDashboard() {
   }
 
   if (loading) {
-    return (
+  return (
       <div className="space-y-6 p-6">
-        <div>
+      <div>
           <h1 className="text-3xl font-bold">BONK Event Calendar</h1>
           <p className="text-muted-foreground">Loading BONK ecosystem events...</p>
-        </div>
+      </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="animate-pulse">
-              <CardHeader>
+          <CardHeader>
                 <div className="h-5 bg-muted rounded w-32 mb-2" />
                 <div className="h-4 bg-muted rounded w-48" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
                   <div className="h-20 bg-muted rounded" />
                   <div className="h-4 bg-muted rounded w-24" />
-                </div>
+                  </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+                ))}
+              </div>
       </div>
     )
   }
@@ -342,10 +342,10 @@ export function CalendarDashboard() {
                 <option value="nft">NFT</option>
                 <option value="governance">Governance</option>
               </select>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
       {/* Enhanced Calendar and Event List */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -463,27 +463,27 @@ export function CalendarDashboard() {
                       </div>
                       
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                        <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1">
                           <Clock className="w-4 h-4 text-orange-500" />
                           {new Date(event.date).toLocaleDateString('en-US', {
                             weekday: 'short',
                             month: 'short',
                             day: 'numeric'
                           })} at {event.time}
-                        </div>
-                        {event.location && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4 text-orange-500" />
-                            {event.location}
                           </div>
-                        )}
-                        {event.attendees && (
-                          <div className="flex items-center gap-1">
+                          {event.location && (
+                            <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4 text-orange-500" />
+                              {event.location}
+                            </div>
+                          )}
+                          {event.attendees && (
+                            <div className="flex items-center gap-1">
                             <Users className="w-4 h-4 text-orange-500" />
                             {event.attendees} attending
-                          </div>
-                        )}
-                      </div>
+                            </div>
+                          )}
+                        </div>
 
                       {/* Enhanced Tags */}
                       <div className="flex flex-wrap gap-2 mb-3">
@@ -501,19 +501,19 @@ export function CalendarDashboard() {
 
                       {/* Action Buttons */}
                       <div className="flex gap-2">
-                        {event.link && (
+                    {event.link && (
                           <Button asChild variant="outline" size="sm" className="border-orange-200 hover:bg-orange-50">
-                            <a href={event.link} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="w-4 h-4 mr-2" />
+                        <a href={event.link} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-4 h-4 mr-2" />
                               Event Details
-                            </a>
-                          </Button>
-                        )}
+                        </a>
+                      </Button>
+                    )}
                         <Button variant="outline" size="sm" className="border-orange-200 hover:bg-orange-50">
                           <Calendar className="w-4 h-4 mr-2" />
                           Add to Calendar
                         </Button>
-                      </div>
+                  </div>
                     </CardContent>
                   </Card>
                 ))

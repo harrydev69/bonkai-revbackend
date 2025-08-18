@@ -337,7 +337,7 @@ export default function SentimentDashboard({
   -------------------------------- */
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <div>
           <h1 className="text-3xl font-bold">Sentiment Analysis</h1>
           <p className="text-muted-foreground">Loading real-time sentiment…</p>
@@ -353,7 +353,7 @@ export default function SentimentDashboard({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Sentiment Analysis</h1>
         <p className="text-muted-foreground">Real-time sentiment tracking across social media platforms</p>

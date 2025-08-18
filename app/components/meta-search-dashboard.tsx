@@ -558,7 +558,7 @@ export function MetaSearchDashboard({ bonkData, initialQuery = "" }: MetaSearchD
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Meta Search</h1>
         <p className="text-muted-foreground">Search across multiple platforms for BONK and Solana ecosystem content</p>

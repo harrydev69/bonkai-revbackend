@@ -213,7 +213,7 @@ export function ChatInterface({ bonkData }: ChatInterfaceProps) {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)] max-w-4xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-12rem)] max-w-4xl mx-auto p-6">
       <Card className="flex-1 flex flex-col">
         <CardHeader className="border-b">
           <div className="flex items-center gap-3">

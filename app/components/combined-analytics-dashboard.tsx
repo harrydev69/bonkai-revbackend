@@ -185,7 +185,7 @@ export function CombinedAnalyticsDashboard({ bonkData }: CombinedAnalyticsProps)
 
   return (
     <div className="flex-1 overflow-y-auto h-full">
-      <div className="w-full px-8 py-8 min-h-full">
+      <div className="w-full p-6 min-h-full">
         {/* Header */}
         <div className="flex items-center gap-6 mb-12">
           <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">

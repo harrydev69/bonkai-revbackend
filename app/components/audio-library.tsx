@@ -544,14 +544,14 @@ export function AudioLibrary() {
               {/* Enhanced Stats and Controls */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                  <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4 text-orange-500" />
                     {formatDuration(track.duration)}
-                                  </div>
-                                  <div className="flex items-center gap-1">
+                                </div>
+                                <div className="flex items-center gap-1">
                     <Headphones className="w-4 h-4 text-orange-500" />
                     {formatPlays(track.plays)}
-                                  </div>
+                                </div>
                               </div>
                 <div className="flex items-center gap-2">
                             <Button
