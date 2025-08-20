@@ -571,26 +571,32 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col items-center justify-center space-y-1 bg-transparent"
-                  onClick={() => setCurrentView("analytics")}
+                  asChild
                 >
-                  <BarChart3 className="w-5 h-5" />
-                  <span className="text-sm">Full Analytics</span>
+                  <a href="/analytics">
+                    <BarChart3 className="w-5 h-5" />
+                    <span className="text-sm">Full Analytics</span>
+                  </a>
                 </Button>
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col items-center justify-center space-y-1 bg-transparent"
-                  onClick={() => setCurrentView("narrative")}
+                  asChild
                 >
-                  <Globe className="w-5 h-5" />
-                  <span className="text-sm">Narrative Tracker</span>
+                  <a href="/narrative">
+                    <Globe className="w-5 h-5" />
+                    <span className="text-sm">Narrative Tracker</span>
+                  </a>
                 </Button>
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col items-center justify-center space-y-1 bg-transparent"
-                  onClick={() => setCurrentView("calendar")}
+                  asChild
                 >
-                  <Clock className="w-5 h-5" />
-                  <span className="text-sm">Event Calendar</span>
+                  <a href="/calendar">
+                    <Clock className="w-5 h-5" />
+                    <span className="text-sm">Event Calendar</span>
+                  </a>
                 </Button>
               </div>
             </CardContent>

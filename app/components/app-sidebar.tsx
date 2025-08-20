@@ -168,25 +168,27 @@ export function AppSidebar({
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.view}>
                   <SidebarMenuButton
-                    onClick={() => setCurrentView(item.view)}
+                    asChild
                     isActive={currentView === item.view}
                     className="w-full justify-start"
                     tooltip={isCollapsed ? item.title : undefined}
                   >
-                    <item.icon className="w-4 h-4" />
-                    <span>{item.title}</span>
-                    {item.badge && (
-                      <Badge
-                        variant={
-                          item.view === "sentiment" && bonkData.sentiment === "bullish"
-                            ? "default"
-                            : "secondary"
-                        }
-                        className="ml-auto text-xs"
-                      >
-                        {item.badge}
-                      </Badge>
-                    )}
+                                         <a href={`/${item.view === "dashboard" ? "dashboard" : item.view}`}>
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.title}</span>
+                      {item.badge && (
+                        <Badge
+                          variant={
+                            item.view === "sentiment" && bonkData.sentiment === "bullish"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="ml-auto text-xs"
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

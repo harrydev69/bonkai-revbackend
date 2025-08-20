@@ -52,9 +52,10 @@ export function MobileNavigation({ currentView, setCurrentView }: MobileNavigati
             key={item.view}
             variant={currentView === item.view ? "default" : "ghost"}
             size="sm"
-            onClick={() => setCurrentView(item.view)}
+            asChild
             className="flex flex-col items-center gap-1 h-auto py-2 px-3"
           >
+                         <a href={`/${item.view === "dashboard" ? "dashboard" : item.view}`}>
             <div className="relative">
               <item.icon className="w-5 h-5" />
               {item.badge && (
@@ -64,6 +65,7 @@ export function MobileNavigation({ currentView, setCurrentView }: MobileNavigati
               )}
             </div>
             <span className="text-xs">{item.title}</span>
+            </a>
           </Button>
         ))}
       </div>

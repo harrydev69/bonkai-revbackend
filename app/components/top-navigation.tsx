@@ -276,9 +276,11 @@ export function TopNavigation({
                 )}
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setCurrentView("alerts")}>
-                <Bell className="mr-2 h-4 w-4" />
-                <span>View All Alerts</span>
+              <DropdownMenuItem asChild>
+                <a href="/alerts">
+                  <Bell className="mr-2 h-4 w-4" />
+                  <span>View All Alerts</span>
+                </a>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -307,17 +309,21 @@ export function TopNavigation({
                 </div>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setCurrentView("profile")}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+              <DropdownMenuItem asChild>
+                <a href="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </a>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={isConnected ? disconnectWallet : connectWallet}>
                 <Wallet className="mr-2 h-4 w-4" />
                 <span>{isConnected ? "Disconnect Wallet" : "Connect Wallet"}</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCurrentView("settings")}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
+              <DropdownMenuItem asChild>
+                <a href="/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </a>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {/* Mobile Social Links */}

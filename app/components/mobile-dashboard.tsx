@@ -16,7 +16,7 @@ export function MobileDashboard({ setCurrentView, bonkData }: MobileDashboardPro
       title: "AI Analysis",
       description: "Get instant BONK insights",
       icon: Bot,
-      action: () => setCurrentView("chat"),
+      href: "/chat",
       color: "from-blue-500 to-blue-600",
       badge: "AI",
     },
@@ -24,7 +24,7 @@ export function MobileDashboard({ setCurrentView, bonkData }: MobileDashboardPro
       title: "Price Alert",
       description: "Set smart notifications",
       icon: Bell,
-      action: () => setCurrentView("alerts"),
+      href: "/alerts",
       color: "from-red-500 to-red-600",
       badge: "New",
     },
@@ -32,7 +32,7 @@ export function MobileDashboard({ setCurrentView, bonkData }: MobileDashboardPro
       title: "Search Data",
       description: "Explore BONK ecosystem",
       icon: Search,
-      action: () => setCurrentView("search"),
+      href: "/search",
       color: "from-green-500 to-green-600",
       badge: "Live",
     },
@@ -40,7 +40,7 @@ export function MobileDashboard({ setCurrentView, bonkData }: MobileDashboardPro
       title: "Sentiment",
       description: "Market mood tracker",
       icon: TrendingUp,
-      action: () => setCurrentView("sentiment"),
+      href: "/sentiment",
       color: "from-purple-500 to-purple-600",
       badge: bonkData.sentiment === "bullish" ? "↗" : "↘",
     },
@@ -120,8 +120,9 @@ export function MobileDashboard({ setCurrentView, bonkData }: MobileDashboardPro
             <Card
               key={index}
               className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm"
-              onClick={action.action}
+              asChild
             >
+              <a href={action.href}>
               <CardContent className="p-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -139,12 +140,13 @@ export function MobileDashboard({ setCurrentView, bonkData }: MobileDashboardPro
                   <div className="flex items-center justify-end">
                     <ChevronRight className="w-4 h-4 text-gray-400" />
                   </div>
-                </div>
-              </CardContent>
+                                  </div>
+                </CardContent>
+              </a>
             </Card>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
 
       {/* Recent Activity */}
       <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
@@ -185,11 +187,13 @@ export function MobileDashboard({ setCurrentView, bonkData }: MobileDashboardPro
           <h3 className="text-lg font-bold mb-2">Ready to dive deeper?</h3>
           <p className="text-orange-100 mb-4 text-sm">Explore advanced analytics and AI-powered insights</p>
           <Button
-            onClick={() => setCurrentView("chat")}
+            asChild
             className="bg-white text-orange-600 hover:bg-orange-50 font-medium"
           >
-            <Bot className="w-4 h-4 mr-2" />
-            Start AI Chat
+            <a href="/chat">
+              <Bot className="w-4 h-4 mr-2" />
+              Start AI Chat
+            </a>
           </Button>
         </CardContent>
       </Card>
