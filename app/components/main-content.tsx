@@ -1,7 +1,7 @@
 // app/components/main-content.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -81,47 +81,50 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
   const [ecoError, setEcoError] = useState<string | null>(null);
   const [ecoUpdatedAt, setEcoUpdatedAt] = useState<number | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setEcoLoading(true);
-        const q = new URLSearchParams({
-          vs_currency: "usd",
-          category: "letsbonk-fun-ecosystem",
-          per_page: "100",
-          page: "1",
-          order: "market_cap_desc",
-        });
-        let res = await fetch(`/api/tokens/top?${q.toString()}`);
-        if (!res.ok) {
-          await new Promise((r) => setTimeout(r, 600));
-          res = await fetch(`/api/tokens/top?${q.toString()}`);
-        }
-        if (!res.ok) throw new Error(`api ${res.status}`);
-        const j: ApiOut = await res.json();
-        setEcoRows(Array.isArray(j.tokens) ? j.tokens : []);
-        setEcoMeta(j.meta ?? null);
-        setEcoError(null);
-        setEcoUpdatedAt(j.meta?.updatedAt ?? Date.now());
-      } catch (e: any) {
-        setEcoError(e?.message ?? "load_error");
-      } finally {
-        setEcoLoading(false);
+  // Memoize the fetch function to prevent recreation
+  const fetchEcoData = useCallback(async () => {
+    try {
+      setEcoLoading(true);
+      const q = new URLSearchParams({
+        vs_currency: "usd",
+        category: "letsbonk-fun-ecosystem",
+        per_page: "100",
+        page: "1",
+        order: "market_cap_desc",
+      });
+      let res = await fetch(`/api/tokens/top?${q.toString()}`);
+      if (!res.ok) {
+        await new Promise((r) => setTimeout(r, 600));
+        res = await fetch(`/api/tokens/top?${q.toString()}`);
       }
-    })();
+      if (!res.ok) throw new Error(`api ${res.status}`);
+      const j: ApiOut = await res.json();
+      setEcoRows(Array.isArray(j.tokens) ? j.tokens : []);
+      setEcoMeta(j.meta ?? null);
+      setEcoError(null);
+      setEcoUpdatedAt(j.meta?.updatedAt ?? Date.now());
+    } catch (e: any) {
+      setEcoError(e?.message ?? "load_error");
+    } finally {
+      setEcoLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchEcoData();
+  }, [fetchEcoData]);
+
   // ---- helpers ----
-  const asNumber = (v: unknown): number | null => {
+  const asNumber = useCallback((v: unknown): number | null => {
     if (typeof v === "number" && Number.isFinite(v)) return v;
     if (typeof v === "string") {
       const n = Number(v);
       return Number.isFinite(n) ? n : null;
     }
     return null;
-  };
+  }, []);
 
-  const formatPrice = (
+  const formatPrice = useCallback((
     v: unknown,
     opts?: { min?: number; max?: number; currency?: string }
   ) => {
@@ -138,9 +141,9 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
       minimumFractionDigits: min,
       maximumFractionDigits: max,
     });
-  };
+  }, [asNumber]);
 
-  const formatNumber = (v: unknown, opts?: { min?: number; max?: number }) => {
+  const formatNumber = useCallback((v: unknown, opts?: { min?: number; max?: number }) => {
     const n = asNumber(v);
     if (n === null) return "—";
     const { min = 0, max = 4 } = opts ?? {};
@@ -148,26 +151,26 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
       minimumFractionDigits: min,
       maximumFractionDigits: max,
     });
-  };
+  }, [asNumber]);
 
-  const formatMarketCap = (v: unknown) => {
+  const formatMarketCap = useCallback((v: unknown) => {
     const n = asNumber(v);
     if (n === null) return "—";
     if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
     if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
     return `$${n.toFixed(0)}`;
-  };
+  }, [asNumber]);
 
-  const formatVolume = (v: unknown) => {
+  const formatVolume = useCallback((v: unknown) => {
     const n = asNumber(v);
     if (n === null) return "—";
     if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
     if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
     if (n >= 1e3) return `$${(n / 1e3).toFixed(2)}K`;
     return `$${n.toFixed(0)}`;
-  };
+  }, [asNumber]);
 
-  const getSentimentColor = (sentiment: BonkData["sentiment"]) => {
+  const getSentimentColor = useCallback((sentiment: BonkData["sentiment"]) => {
     switch (sentiment) {
       case "bullish":
         return "text-green-600 bg-green-50 border-green-200";
@@ -176,9 +179,9 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
       default:
         return "text-yellow-600 bg-yellow-50 border-yellow-200";
     }
-  };
+  }, []);
 
-  const getSentimentIcon = (sentiment: BonkData["sentiment"]) => {
+  const getSentimentIcon = useCallback((sentiment: BonkData["sentiment"]) => {
     switch (sentiment) {
       case "bullish":
         return <TrendingUp className="w-4 h-4" />;
@@ -187,10 +190,16 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
       default:
         return <Activity className="w-4 h-4" />;
     }
-  };
+  }, []);
 
-  const change = asNumber(bonkData?.change24h);
-  const isUp = change !== null && change >= 0;
+  // Memoize expensive calculations
+  const { change, isUp } = useMemo(() => {
+    const changeValue = asNumber(bonkData?.change24h);
+    return {
+      change: changeValue,
+      isUp: changeValue !== null && changeValue >= 0
+    };
+  }, [bonkData?.change24h, asNumber]);
 
   // ---- client-side fallback summary ----
   const computedMeta: ApiMeta | null = useMemo(() => {
@@ -198,35 +207,26 @@ export function MainContent({ setCurrentView, bonkData }: MainContentProps) {
     if (!ecoRows.length) return null;
     const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
     const totalMarketCap = sum(
-      ecoRows.map((r) =>
-        typeof r.marketCap === "number" && Number.isFinite(r.marketCap)
-          ? r.marketCap
-          : 0
-      )
+      ecoRows
+        .map((r) => asNumber(r.marketCap))
+        .filter((n): n is number => n !== null)
     );
     const totalVolume = sum(
-      ecoRows.map((r) =>
-        typeof r.volume === "number" && Number.isFinite(r.volume) ? r.volume : 0
-      )
+      ecoRows
+        .map((r) => asNumber(r.volume))
+        .filter((n): n is number => n !== null)
     );
     const changes = ecoRows
-      .map((r) =>
-        typeof r.change24h === "number" && Number.isFinite(r.change24h)
-          ? r.change24h
-          : null
-      )
-      .filter((x): x is number => x !== null);
-    const avg24h = changes.length
-      ? changes.reduce((a, b) => a + b, 0) / changes.length
-      : null;
+      .map((r) => asNumber(r.change24h))
+      .filter((n): n is number => n !== null);
+    const avg24h = changes.length ? sum(changes) / changes.length : null;
     return {
       totalMarketCap,
       totalVolume,
       avg24h,
       updatedAt: ecoUpdatedAt ?? Date.now(),
-      source: "client-sum",
     };
-  }, [ecoMeta, ecoRows, ecoUpdatedAt]);
+  }, [ecoMeta, ecoRows, ecoUpdatedAt, asNumber]);
 
   const SummaryTiles = ({ meta }: { meta: ApiMeta | null }) => (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

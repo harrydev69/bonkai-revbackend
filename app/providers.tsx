@@ -15,30 +15,28 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 interface ProvidersProps { children: ReactNode }
 
-// --- tiny client-side queue to space internal /api calls ---
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-let lastInternalTs = 0;
-const GAP_MS = 350; // ~3 req/sec max burst from the browser
-
-async function queuedFetcher(key: string) {
-  // Only throttle your own API routes; external URLs pass through
-  const url = new URL(key, typeof window !== "undefined" ? window.location.origin : "http://localhost");
-  const isInternalApi = url.origin === (typeof window !== "undefined" ? window.location.origin : url.origin)
-    && url.pathname.startsWith("/api/");
-
-  if (isInternalApi) {
-    const delta = Date.now() - lastInternalTs;
-    const wait = delta < GAP_MS ? GAP_MS - delta : 0;
-    if (wait > 0) await sleep(wait);
-    lastInternalTs = Date.now();
-  }
-
-  const res = await fetch(url.toString(), { cache: "no-store" });
+// Optimized fetcher without artificial delays
+async function optimizedFetcher(key: string) {
+  const res = await fetch(key, { 
+    cache: "no-store",
+    // Add reasonable timeout instead of artificial delay
+    signal: AbortSignal.timeout(10000)
+  });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   return res.json();
 }
 
-const queryClient = new QueryClient();
+// Optimized query client with better defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 export const Providers: FC<ProvidersProps> = ({ children }) => {
   const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("mainnet-beta");
@@ -53,15 +51,16 @@ export const Providers: FC<ProvidersProps> = ({ children }) => {
     <QueryClientProvider client={queryClient}>
       <SWRConfig
         value={{
-          fetcher: queuedFetcher,
-          // strong dedupe so identical keys within 15s collapse to 1 request
-          dedupingInterval: 15_000,
-          // avoid burst revalidations on focus/navigation
+          fetcher: optimizedFetcher,
+          // Optimized caching strategy
+          dedupingInterval: 30_000, // 30 seconds
           revalidateOnFocus: false,
           revalidateOnReconnect: true,
-          focusThrottleInterval: 20_000,
-          // you can still set per-hook refreshInterval in components
+          focusThrottleInterval: 60_000, // 1 minute
           shouldRetryOnError: false,
+          // Add error retry with exponential backoff
+          errorRetryCount: 2,
+          errorRetryInterval: 1000,
         }}
       >
         <ConnectionProvider endpoint={endpoint}>

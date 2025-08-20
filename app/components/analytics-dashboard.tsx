@@ -76,13 +76,13 @@ export function AnalyticsDashboard() {
     ]
   }
 
-  return (
-    <div className="space-y-6 p-6">
+    return (
+      <div className="space-y-6 p-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
         <p className="text-muted-foreground">Real-time analytics and insights for BONK and LetsBonk.fun ecosystems</p>
-      </div>
+        </div>
 
       {/* Analytics Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -102,8 +102,8 @@ export function AnalyticsDashboard() {
               <CardDescription>
                 Comprehensive analytics and insights for the Bonk ecosystem and related tokens. Huge thanks to these contributors: @adam_tehc and @oladee
               </CardDescription>
-            </CardHeader>
-            <CardContent>
+              </CardHeader>
+              <CardContent>
               <div className="space-y-12">
                 
                                  {/* PRICE GROUP */}
@@ -111,13 +111,13 @@ export function AnalyticsDashboard() {
                    <div className="border-b pb-2">
                      <h2 className="text-2xl font-semibold">Price & Market Metrics</h2>
                      <p className="text-sm text-muted-foreground">Price analysis, market cap, and market trends</p>
-                   </div>
+        </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {bonkEmbedGroups.price.map((embed, index) => (
                       <div key={index} className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-medium text-muted-foreground">{embed.title}</h3>
-                        </div>
+      </div>
                         <div className="w-full h-[300px] bg-white rounded-lg border overflow-hidden shadow-sm relative">
                           <iframe
                             src={`https://dune.com/embeds/${embed.id}?theme=dark&hide_legend=true&clean=true&hide_title=true&hide_branding=true&disable_links=true`}
@@ -140,11 +140,11 @@ export function AnalyticsDashboard() {
                             <div className="absolute bottom-0 left-0 w-24 h-8 bg-transparent pointer-events-auto z-30" />
                             <div className="absolute bottom-0 right-0 w-8 h-8 bg-transparent pointer-events-auto z-30" />
                           </>
-                        </div>
-                      </div>
+              </div>
+            </div>
                     ))}
-                  </div>
-                </div>
+        </div>
+      </div>
 
                                  {/* TRADING GROUP */}
                  <div className="space-y-6">
@@ -157,7 +157,7 @@ export function AnalyticsDashboard() {
                       <div key={index} className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-medium text-muted-foreground">{embed.title}</h3>
-                        </div>
+      </div>
                         <div className="w-full h-[300px] bg-white rounded-lg border overflow-hidden shadow-sm relative">
                           <iframe
                             src={`https://dune.com/embeds/${embed.id}?theme=dark&hide_legend=true&clean=true&hide_title=true&hide_branding=true&disable_links=true`}
@@ -180,24 +180,24 @@ export function AnalyticsDashboard() {
                             <div className="absolute bottom-0 left-0 w-24 h-8 bg-transparent pointer-events-auto z-30" />
                             <div className="absolute bottom-0 right-0 w-8 h-8 bg-transparent pointer-events-auto z-30" />
                           </>
-                        </div>
-                      </div>
-                    ))}
+              </div>
+              </div>
+        ))}
                   </div>
-                </div>
+      </div>
 
                                  {/* NETWORK GROUP */}
                  <div className="space-y-6">
                    <div className="border-b pb-2">
                      <h2 className="text-2xl font-semibold">Network & Holder Metrics</h2>
                      <p className="text-sm text-muted-foreground">Holder distribution, network growth, and network insights</p>
-                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {bonkEmbedGroups.network.map((embed, index) => (
                       <div key={index} className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-medium text-muted-foreground">{embed.title}</h3>
-                        </div>
+                  </div>
                         <div className="w-full h-[300px] bg-white rounded-lg border overflow-hidden shadow-sm relative">
                           <iframe
                             src={`https://dune.com/embeds/${embed.id}?theme=dark&hide_legend=true&clean=true&hide_title=true&hide_branding=true&disable_links=true`}
@@ -220,8 +220,8 @@ export function AnalyticsDashboard() {
                             <div className="absolute bottom-0 left-0 w-24 h-8 bg-transparent pointer-events-auto z-30" />
                             <div className="absolute bottom-0 right-0 w-8 h-8 bg-transparent pointer-events-auto z-30" />
                           </>
-                        </div>
-                      </div>
+                  </div>
+                  </div>
                     ))}
                   </div>
                 </div>
@@ -231,13 +231,13 @@ export function AnalyticsDashboard() {
                    <div className="border-b pb-2">
                      <h2 className="text-2xl font-semibold">Social & Development Metrics</h2>
                      <p className="text-sm text-muted-foreground">Social sentiment, development activity, and community engagement</p>
-                   </div>
+                  </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {bonkEmbedGroups.social.map((embed, index) => (
                       <div key={index} className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-medium text-muted-foreground">{embed.title}</h3>
-                        </div>
+                  </div>
                         <div className="w-full h-[300px] bg-white rounded-lg border overflow-hidden shadow-sm relative">
                           <iframe
                             src={`https://dune.com/embeds/${embed.id}?theme=dark&hide_legend=true&clean=true&hide_title=true&hide_branding=true&disable_links=true`}
@@ -260,8 +260,8 @@ export function AnalyticsDashboard() {
                             <div className="absolute bottom-0 left-0 w-24 h-8 bg-transparent pointer-events-auto z-30" />
                             <div className="absolute bottom-0 right-0 w-8 h-8 bg-transparent pointer-events-auto z-30" />
                           </>
-                        </div>
-                      </div>
+                  </div>
+                  </div>
                     ))}
                   </div>
                 </div>
@@ -271,13 +271,13 @@ export function AnalyticsDashboard() {
                    <div className="border-b pb-2">
                      <h2 className="text-2xl font-semibold">Performance & Ecosystem Metrics</h2>
                      <p className="text-sm text-muted-foreground">Overall performance, ecosystem health, and comprehensive analytics</p>
-                   </div>
+                      </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {bonkEmbedGroups.performance.map((embed, index) => (
                       <div key={index} className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-medium text-muted-foreground">{embed.title}</h3>
-                        </div>
+                      </div>
                         <div className="w-full h-[300px] bg-white rounded-lg border overflow-hidden shadow-sm relative">
                           <iframe
                             src={`https://dune.com/embeds/${embed.id}?theme=dark&hide_legend=true&clean=true&hide_title=true&hide_branding=true&disable_links=true`}
@@ -300,9 +300,9 @@ export function AnalyticsDashboard() {
                             <div className="absolute bottom-0 left-0 w-24 h-8 bg-transparent pointer-events-auto z-30" />
                             <div className="absolute bottom-0 right-0 w-8 h-8 bg-transparent pointer-events-auto z-30" />
                           </>
-                        </div>
-                      </div>
-                    ))}
+                    </div>
+                  </div>
+                ))}
                   </div>
                 </div>
 
@@ -364,7 +364,7 @@ export function AnalyticsDashboard() {
                       </div>
                     ))}
                   </div>
-                </div>
+                    </div>
 
                 {/* TRADING GROUP */}
                 <div className="space-y-6">
@@ -377,7 +377,7 @@ export function AnalyticsDashboard() {
                       <div key={index} className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-medium text-muted-foreground">{embed.title}</h3>
-                        </div>
+                    </div>
                         <div className="w-full h-[300px] bg-white rounded-lg border overflow-hidden shadow-sm relative">
                           <iframe
                             src={`https://dune.com/embeds/${embed.id}?theme=dark&hide_legend=true&clean=true&hide_title=true&hide_branding=true&disable_links=true`}
@@ -400,8 +400,8 @@ export function AnalyticsDashboard() {
                             <div className="absolute bottom-0 left-0 w-24 h-8 bg-transparent pointer-events-auto z-30" />
                             <div className="absolute bottom-0 right-0 w-8 h-8 bg-transparent pointer-events-auto z-30" />
                           </>
-                        </div>
-                      </div>
+                  </div>
+                    </div>
                     ))}
                   </div>
                 </div>
@@ -441,10 +441,10 @@ export function AnalyticsDashboard() {
                             <div className="absolute bottom-0 right-0 w-8 h-8 bg-transparent pointer-events-auto z-30" />
                           </>
                         </div>
-                      </div>
+                    </div>
                     ))}
                   </div>
-                </div>
+                    </div>
 
                 {/* PERFORMANCE GROUP */}
                 <div className="space-y-6">
@@ -457,7 +457,7 @@ export function AnalyticsDashboard() {
                       <div key={index} className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-medium text-muted-foreground">{embed.title}</h3>
-                        </div>
+                    </div>
                         <div className="w-full h-[300px] bg-white rounded-lg border overflow-hidden shadow-sm relative">
                           <iframe
                             src={`https://dune.com/embeds/${embed.id}?theme=dark&hide_legend=true&clean=true&hide_title=true&hide_branding=true&disable_links=true`}
@@ -480,11 +480,11 @@ export function AnalyticsDashboard() {
                             <div className="absolute bottom-0 left-0 w-24 h-8 bg-transparent pointer-events-auto z-30" />
                             <div className="absolute bottom-0 right-0 w-8 h-8 bg-transparent pointer-events-auto z-30" />
                           </>
-                        </div>
+                  </div>
                       </div>
                     ))}
-                  </div>
                 </div>
+              </div>
 
               </div>
             </CardContent>

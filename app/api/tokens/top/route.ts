@@ -1,7 +1,8 @@
 // app/api/tokens/top/route.ts
 import { NextResponse } from "next/server"
 
-export const revalidate = 60 // cache good responses for 60s
+// Next.js requires revalidate to be a constant value
+export const revalidate = 120
 
 type CgCoin = {
   id: string
@@ -100,8 +101,9 @@ export async function GET(req: Request) {
       logoUrl: c.image ?? null, // pass CoinGecko image directly
     }))
 
-    return NextResponse.json({ tokens })
+    return NextResponse.json({ tokens }, { headers: { "Cache-Control": `public, s-maxage=${revalidate}, stale-while-revalidate=${revalidate}` } })
   } catch (e: any) {
+    // Brief stale fallback if we have an edge cache layer present; otherwise just return error
     return NextResponse.json({ error: String(e?.message ?? e ?? "coingecko_error") }, { status: 502 })
   }
 }

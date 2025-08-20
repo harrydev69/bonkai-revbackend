@@ -18,6 +18,7 @@ import { ProfileDashboard } from "../components/profile-dashboard"
 import { ResponsiveLayout } from "../components/responsive-layout"
 import { ProductTour } from "../components/product-tour"
 import { WalletProvider } from "../components/wallet-provider"
+import { PerformanceMonitor } from "../components/performance-monitor"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -510,7 +511,7 @@ function DashboardInner() {
         <div className={isDarkMode ? "dark" : ""}>
           <BonkProvider
             refreshMs={settings.api.autoRefresh ? settings.api.refreshInterval * 1000 : 0}
-            useWebSocket={settings.api.enableWebSocket}
+            useWebSocket={process.env.NODE_ENV === "production" ? true : settings.api.enableWebSocket}
           >
             <DashboardBody
               currentView={currentView}
@@ -525,6 +526,7 @@ function DashboardInner() {
           </BonkProvider>
 
           <Toaster />
+          <PerformanceMonitor />
         </div>
       </WalletProvider>
     </ErrorBoundary>

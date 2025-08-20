@@ -1,5 +1,6 @@
 "use client";
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { bonkDataService } from "../services/fast-data-service";
 
 export type SentimentText = "bullish" | "bearish" | "neutral";
 
@@ -64,21 +65,15 @@ export function BonkProvider({
   const esRef = useRef<EventSource | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  async function safeJson(res: Response) {
-    if (!res.ok) throw new Error(String(res.status));
+  // Fast data fetching with progressive loading
+  const fetchBoth = useCallback(async () => {
     try {
-      return await res.json();
-    } catch {
-      throw new Error("bad_json");
-    }
-  }
-
-  async function fetchBoth() {
-    try {
+      // Use fast data service for progressive loading
       const [pr, se] = await Promise.all([
-        fetch("/api/bonk/price", { cache: "no-store" }).then(safeJson),
-        fetch("/api/bonk/sentiment", { cache: "no-store" }).then(safeJson),
+        bonkDataService.getPrice(),
+        bonkDataService.getSentiment(),
       ]);
+      
       setPrice(pr);
       setSenti(se);
       setErr(null);
@@ -86,8 +81,16 @@ export function BonkProvider({
     } catch (e: any) {
       setErr(e?.message || "load_error");
     }
-  }
+  }, []);
 
+  // Prefetch data on mount for instant loading
+  useEffect(() => {
+    bonkDataService.prefetchAll().catch(() => {
+      // Silently handle prefetch errors
+    });
+  }, []);
+
+  // Memoize sentiment calculation
   const sentimentText: SentimentText = useMemo(() => {
     const score = senti?.score;
     if (typeof score !== "number") return "neutral";
@@ -96,6 +99,7 @@ export function BonkProvider({
     return "neutral";
   }, [senti]);
 
+  // Memoize bonkData to prevent unnecessary re-renders
   const bonkData: BonkData | null = useMemo(() => {
     if (!price) return null;
     const nz = (n: unknown, fallback = 0): number =>
@@ -111,18 +115,27 @@ export function BonkProvider({
     };
   }, [price, sentimentText]);
 
+  // Optimized useEffect with proper cleanup and dependencies
   useEffect(() => {
     let alive = true;
 
-    (async () => {
+    const initializeData = async () => {
       setLoading(true);
       await fetchBoth();
       if (alive) setLoading(false);
-    })();
+    };
 
-    // tear down any previous stream/interval
-    if (esRef.current) { esRef.current.close(); esRef.current = null; }
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    initializeData();
+
+    // Cleanup previous connections
+    if (esRef.current) { 
+      esRef.current.close(); 
+      esRef.current = null; 
+    }
+    if (pollRef.current) { 
+      clearInterval(pollRef.current); 
+      pollRef.current = null; 
+    }
 
     if (refreshMs <= 0) {
       return () => { alive = false; };
@@ -132,29 +145,47 @@ export function BonkProvider({
       const seconds = Math.max(1, Math.floor(refreshMs / 1000));
       const es = new EventSource(`/api/bonk/stream?interval=${seconds}`);
       esRef.current = es;
+      
       es.onmessage = (ev) => {
-        // some servers send keep-alives; ignore non-JSON
         try {
           const j = JSON.parse(ev.data) as PriceOut;
           setPrice(prev => ({ ...(prev ?? j), ...j }));
           setLastUpdated(Date.now());
         } catch {
-          // ignore
+          // ignore invalid JSON
         }
       };
+      
       es.onerror = () => {
-        // let browser auto-reconnect; could add UI toast here if desired
+        // let browser auto-reconnect
       };
-      return () => { alive = false; es.close(); esRef.current = null; };
+      
+      return () => { 
+        alive = false; 
+        es.close(); 
+        esRef.current = null; 
+      };
     } else {
       const id = setInterval(fetchBoth, refreshMs);
       pollRef.current = id;
-      return () => { alive = false; clearInterval(id); pollRef.current = null; };
+      return () => { 
+        alive = false; 
+        clearInterval(id); 
+        pollRef.current = null; 
+      };
     }
-  }, [refreshMs, useWebSocket]);
+  }, [refreshMs, useWebSocket, fetchBoth]);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    bonkData,
+    loading,
+    error: err,
+    lastUpdated,
+  }), [bonkData, loading, err, lastUpdated]);
 
   return (
-    <BonkContext.Provider value={{ bonkData, loading, error: err, lastUpdated }}>
+    <BonkContext.Provider value={contextValue}>
       {children}
     </BonkContext.Provider>
   );
