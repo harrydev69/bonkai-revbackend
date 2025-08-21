@@ -3,6 +3,21 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* CoinGecko Widget Customization */
+gecko-coin-price-marquee-widget {
+  --cg-background: transparent !important;
+  --cg-text-color: #000000 !important;
+  --cg-border-color: rgba(0, 0, 0, 0.1) !important;
+  --cg-hover-background: rgba(0, 0, 0, 0.05) !important;
+}
+
+.dark gecko-coin-price-marquee-widget {
+  --cg-background: transparent !important;
+  --cg-text-color: #ffffff !important;
+  --cg-border-color: rgba(255, 255, 255, 0.1) !important;
+  --cg-hover-background: rgba(255, 255, 255, 0.05) !important;
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

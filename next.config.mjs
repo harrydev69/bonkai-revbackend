@@ -23,6 +23,20 @@ const nextConfig = {
   },
   // Enable compression
   compress: true,
+  // Add headers for CoinGecko widget
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://widgets.coingecko.com; style-src 'self' 'unsafe-inline' https://widgets.coingecko.com;"
+          }
+        ]
+      }
+    ]
+  },
   // Optimize bundle splitting
   webpack: (config, { dev, isServer }) => {
     if (!dev && !isServer) {

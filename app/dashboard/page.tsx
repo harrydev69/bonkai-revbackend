@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 
-import MainContent from "../components/main-content"
+import { MainContent } from "../components/main-content"
 import { ChatInterface } from "../components/chat-interface"
 import { MetaSearchDashboard } from "../components/meta-search-dashboard"
 import { SentimentDashboard } from "../components/sentiment-dashboard"
