@@ -65,6 +65,10 @@ type OverviewPayload = {
     changePct: number;
   };
   lastUpdated: string;
+  // Add supply data
+  circulatingSupply: number;
+  totalSupply: number;
+  maxSupply: number;
 };
 
 async function fetchBONKOverview(): Promise<OverviewPayload | null> {
@@ -72,7 +76,8 @@ async function fetchBONKOverview(): Promise<OverviewPayload | null> {
     const API_BASE = process.env.COINGECKO_API_BASE || 'https://api.coingecko.com/api/v3';
     const API_KEY = process.env.COINGECKO_API_KEY;
     
-    const url = `${API_BASE}/coins/markets?vs_currency=usd&ids=bonk&sparkline=true&price_change_percentage=1h,24h,7d,30d,1y`;
+    // Use the comprehensive endpoint for maximum data
+    const url = `${API_BASE}/coins/bonk?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=true`;
     
     const headers: Record<string, string> = {
       'Accept': 'application/json',
@@ -96,41 +101,45 @@ async function fetchBONKOverview(): Promise<OverviewPayload | null> {
       throw new Error(`CoinGecko overview ${res.status}: ${res.statusText}`);
     }
     
-    const data = await res.json() as CoinGeckoOverviewResponse[];
+    const bonk = await res.json();
     
-    if (!data || data.length === 0) {
-      throw new Error('No BONK data returned from CoinGecko');
+    if (!bonk || !bonk.market_data) {
+      throw new Error('Invalid BONK data returned from CoinGecko');
     }
     
-    const bonk = data[0];
+    const marketData = bonk.market_data;
     
     return {
-      price: bonk.current_price,
+      price: marketData.current_price?.usd || 0,
       changePct: {
-        h1: bonk.price_change_percentage_1h_in_currency || 0,
-        h24: bonk.price_change_percentage_24h || 0,
-        d7: bonk.price_change_percentage_7d_in_currency || 0,
-        d30: bonk.price_change_percentage_30d_in_currency || 0,
-        y1: bonk.price_change_percentage_1y_in_currency || 0,
+        h1: marketData.price_change_percentage_1h_in_currency?.usd || 0,
+        h24: marketData.price_change_percentage_24h || 0,
+        d7: marketData.price_change_percentage_7d_in_currency?.usd || 0,
+        d30: marketData.price_change_percentage_30d_in_currency?.usd || 0,
+        y1: marketData.price_change_percentage_1y_in_currency?.usd || 0,
       },
-      marketCap: bonk.market_cap,
-      fdv: bonk.fully_diluted_valuation,
-      volume24h: bonk.total_volume,
-      rank: bonk.market_cap_rank,
-      sparkline7d: bonk.sparkline_in_7d?.price || [],
-      high24h: bonk.high_24h,
-      low24h: bonk.low_24h,
+      marketCap: marketData.market_cap?.usd || 0,
+      fdv: marketData.fully_diluted_valuation?.usd || 0,
+      volume24h: marketData.total_volume?.usd || 0,
+      rank: bonk.market_cap_rank || null,
+      sparkline7d: bonk.market_data?.sparkline_7d?.price || [],
+      high24h: marketData.high_24h?.usd || 0,
+      low24h: marketData.low_24h?.usd || 0,
       ath: {
-        price: bonk.ath,
-        date: bonk.ath_date,
-        changePct: bonk.ath_change_percentage,
+        price: marketData.ath?.usd || 0,
+        date: marketData.ath_date?.usd || '',
+        changePct: marketData.ath_change_percentage?.usd || 0,
       },
       atl: {
-        price: bonk.atl,
-        date: bonk.atl_date,
-        changePct: bonk.atl_change_percentage,
+        price: marketData.atl?.usd || 0,
+        date: marketData.atl_date?.usd || '',
+        changePct: marketData.atl_change_percentage?.usd || 0,
       },
-      lastUpdated: bonk.last_updated,
+      lastUpdated: bonk.last_updated || '',
+      // Add the missing supply data
+      circulatingSupply: marketData.circulating_supply || 0,
+      totalSupply: marketData.total_supply || 0,
+      maxSupply: marketData.max_supply || 0,
     };
     
   } catch (error) {

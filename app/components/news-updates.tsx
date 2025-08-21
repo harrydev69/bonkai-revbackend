@@ -154,185 +154,127 @@ export function NewsUpdates() {
   const { news, statusUpdates } = newsData;
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Newspaper className="w-5 h-5" />
-              BONK News & Updates
-            </CardTitle>
-            <CardDescription>
-              Latest news, announcements, and status updates • Last updated: {formatDate(newsData.lastUpdated)}
-            </CardDescription>
+    <div className="space-y-4">
+      {/* Header Card - Compact */}
+      <Card className="border-border bg-card shadow-sm">
+        <CardHeader className="pb-3 pt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Newspaper className="w-4 h-4 text-orange-500" />
+              <div>
+                <CardTitle className="text-lg">BONK News & Updates</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Latest news, announcements, and status updates • Last updated: Just now
+                </p>
+              </div>
+            </div>
+            <Button onClick={fetchNewsData} variant="outline" size="sm" className="h-8">
+              <RefreshCw className="w-3 h-3 mr-1" />
+              Refresh
+            </Button>
           </div>
-          
-          <Button onClick={fetchNewsData} variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </CardHeader>
-      
-      <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="news" className="flex items-center gap-2">
-              <Globe className="w-4 h-4" />
-              News ({news.length})
-            </TabsTrigger>
-            <TabsTrigger value="updates" className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Status Updates ({statusUpdates.length})
-            </TabsTrigger>
-          </TabsList>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="news" className="flex items-center gap-2">
+                <Globe className="w-3 h-3" />
+                News ({news.length})
+              </TabsTrigger>
+              <TabsTrigger value="status" className="flex items-center gap-2">
+                <TrendingUp className="w-3 h-3" />
+                Status Updates ({statusUpdates.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="news" className="mt-6">
-            {news.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Newspaper className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No news articles available</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {news.slice(0, 10).map((item, index) => (
-                  <Card key={item.id || index} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {item.source}
-                            </span>
-                            {item.sentiment && (
-                              <Badge className={`${getSentimentColor(item.sentiment)} text-white text-xs`}>
-                                {getSentimentLabel(item.sentiment)}
+            {/* News Content */}
+            <TabsContent value="news" className="mt-4">
+              {news.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Newspaper className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No news available</p>
+                  <p className="text-sm">Check back later for the latest BONK updates</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {news.slice(0, 10).map((item, index) => (
+                    <Card key={item.id || index} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-sm text-muted-foreground">
+                                {item.source}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                {formatDate(item.publishedAt)}
+                              </span>
+                            </div>
+                            <h3 className="font-semibold mb-2 line-clamp-2">{item.title}</h3>
+                            <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
+                              {item.description}
+                            </p>
+                            <Button variant="outline" size="sm" className="text-xs">
+                              Read Full Article
+                              <ExternalLink className="w-3 h-3 ml-1" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Status Updates Content */}
+            <TabsContent value="status" className="mt-4">
+              {statusUpdates.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No status updates available</p>
+                  <p className="text-sm">Check back later for official BONK announcements</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {statusUpdates.slice(0, 10).map((update, index) => (
+                    <Card key={update.id || index} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className={`${getCategoryColor(update.category)} text-white`}>
+                                {update.category}
                               </Badge>
-                            )}
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(item.publishedAt)}
-                            </span>
-                          </div>
-                          <h3 className="font-semibold mb-2 line-clamp-2">{item.title}</h3>
-                          <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
-                            {item.description}
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(item.url, '_blank')}
-                            className="flex items-center gap-2"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            Read Full Article
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="updates" className="mt-6">
-            {statusUpdates.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No status updates available</p>
-                <p className="text-sm">Check back later for official BONK announcements</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {statusUpdates.slice(0, 10).map((update, index) => (
-                  <Card key={update.id || index} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge className={`${getCategoryColor(update.category)} text-white`}>
-                              {update.category}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {formatDate(update.created_at)}
-                            </span>
-                          </div>
-                          <h3 className="font-semibold mb-2">{update.title}</h3>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            {update.description}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>Posted by:</span>
-                            <span className="font-medium">{update.user}</span>
-                            {update.userTitle && (
-                              <>
-                                <span>•</span>
-                                <span>{update.userTitle}</span>
-                              </>
-                            )}
+                              <span className="text-sm text-muted-foreground">
+                                {formatDate(update.created_at)}
+                              </span>
+                            </div>
+                            <h3 className="font-semibold mb-2">{update.title}</h3>
+                            <p className="text-sm text-muted-foreground mb-3">
+                              {update.description}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>Posted by:</span>
+                              <span className="font-medium">{update.user}</span>
+                              {update.userTitle && (
+                                <>
+                                  <span>•</span>
+                                  <span>{update.userTitle}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-
-        {/* News Summary */}
-        <div className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">News Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-500">{news.length}</div>
-                  <div className="text-sm text-muted-foreground">Total Articles</div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-500">
-                    {news.filter(item => item.sentiment === "positive").length}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Positive News</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-500">{statusUpdates.length}</div>
-                  <div className="text-sm text-muted-foreground">Status Updates</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Social Media Links */}
-        <div className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Follow BONK</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-3">
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Twitter className="w-4 h-4" />
-                  Twitter
-                </Button>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Globe className="w-4 h-4" />
-                  Website
-                </Button>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Newspaper className="w-4 h-4" />
-                  Blog
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </CardContent>
-    </Card>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

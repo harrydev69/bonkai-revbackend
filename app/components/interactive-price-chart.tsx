@@ -255,27 +255,27 @@ export function InteractivePriceChart() {
 
   return (
     <Card className="w-full border-border bg-card shadow-lg">
-      <CardHeader className="border-b border-border">
-        <div className="flex items-center justify-between">
+      <CardHeader className="border-b border-border pb-2 md:pb-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-2">
           <div>
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <Activity className="w-5 h-5 text-purple-500" />
+            <CardTitle className="flex items-center gap-2 text-foreground text-sm md:text-base">
+              <Activity className="w-3 h-3 md:w-4 md:h-4 text-purple-500" />
               BONK {chartMode === "price" ? "Price" : "Market Cap"} Chart
             </CardTitle>
-            <CardDescription className="text-muted-foreground">
+            <CardDescription className="text-muted-foreground text-xs">
               {metadata.timeRange} • {metadata.totalPoints} data points • Last updated: {new Date(metadata.lastUpdated).toLocaleString()}
             </CardDescription>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Price/Market Cap Toggle */}
             <ToggleGroup type="single" value={chartMode} onValueChange={(value) => value && setChartMode(value as "price" | "marketCap")}>
-              <ToggleGroupItem value="price" className="px-3 py-2 text-sm bg-background border-border hover:bg-accent">
-                <DollarSign className="w-4 h-4 mr-2 text-purple-500" />
+              <ToggleGroupItem value="price" className="px-2 py-1 text-xs bg-background border-border hover:bg-accent">
+                <DollarSign className="w-3 h-3 mr-1 text-purple-500" />
                 Price
               </ToggleGroupItem>
-              <ToggleGroupItem value="marketCap" className="px-3 py-2 text-sm bg-background border-border hover:bg-accent">
-                <BarChart3 className="w-4 h-4 mr-2 text-blue-500" />
+              <ToggleGroupItem value="marketCap" className="px-2 py-1 text-xs bg-background border-border hover:bg-accent">
+                <BarChart3 className="w-3 h-3 mr-1 text-blue-500" />
                 Market Cap
               </ToggleGroupItem>
             </ToggleGroup>
@@ -286,7 +286,7 @@ export function InteractivePriceChart() {
                 <ToggleGroupItem 
                   key={range.value} 
                   value={range.value} 
-                  className="px-3 py-2 text-sm bg-background border-border hover:bg-accent data-[state=on]:bg-purple-500 data-[state=on]:text-white"
+                  className="px-2 py-1 text-xs bg-background border-border hover:bg-accent data-[state=on]:bg-purple-500 data-[state=on]:text-white"
                 >
                   {range.label}
                 </ToggleGroupItem>
@@ -296,40 +296,9 @@ export function InteractivePriceChart() {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6 p-6">
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 rounded-lg bg-muted/30 border border-border">
-            <div className="text-2xl font-bold text-foreground">
-              {chartMode === "price" ? formatPrice(summary.endPrice) : formatMarketCap(dataPoints[dataPoints.length - 1]?.marketCap || 0)}
-            </div>
-            <div className="text-sm text-muted-foreground">Current</div>
-          </div>
-          
-          <div className="text-center p-4 rounded-lg bg-muted/30 border border-border">
-            <div className={`text-2xl font-bold ${getChangeColor(summary.changePercent)}`}>
-              {formatPercentage(summary.changePercent)}
-            </div>
-            <div className="text-sm text-muted-foreground">Change</div>
-          </div>
-          
-          <div className="text-center p-4 rounded-lg bg-muted/30 border border-border">
-            <div className="text-2xl font-bold text-foreground">
-              {chartMode === "price" ? formatPrice(summary.highestPrice) : formatMarketCap(Math.max(...dataPoints.map(d => d.marketCap)))}
-            </div>
-            <div className="text-sm text-muted-foreground">High</div>
-          </div>
-          
-          <div className="text-center p-4 rounded-lg bg-muted/30 border border-border">
-            <div className="text-2xl font-bold text-foreground">
-              {formatVolume(summary.totalVolume)}
-            </div>
-            <div className="text-sm text-muted-foreground">Volume</div>
-          </div>
-        </div>
-
+      <CardContent className="space-y-3 md:space-y-4 p-4 md:p-6">
         {/* Chart */}
-        <div className="h-96 w-full bg-muted/10 rounded-lg p-4 border border-border">
+        <div className="h-80 md:h-96 w-full bg-muted/10 rounded-lg p-3 md:p-4 border border-border">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={dataPoints} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
               <defs>
@@ -416,15 +385,16 @@ export function InteractivePriceChart() {
         </div>
 
         {/* Refresh Button */}
-        <div className="flex justify-center">
+        <div className="flex justify-center pt-2 md:pt-3">
           <Button 
             onClick={() => fetchChartData(selectedRange)} 
             variant="outline" 
             size="sm"
-            className="px-6 border-border hover:bg-accent"
+            className="px-3 md:px-4 py-1 h-7 md:h-8 text-xs md:text-sm border-border hover:bg-accent"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh Data
+            <RefreshCw className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" /> 
+            <span className="hidden sm:inline">Refresh Data</span>
+            <span className="sm:hidden">Refresh</span>
           </Button>
         </div>
       </CardContent>
