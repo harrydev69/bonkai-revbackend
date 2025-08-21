@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type EnhancedMarketsData = {
   venues: Array<{
@@ -187,35 +188,50 @@ export function EnhancedMarketsDashboard() {
 
   const getTrustScoreColor = (score: string) => {
     switch (score) {
-      case 'green': return 'bg-green-100 text-green-800';
-      case 'yellow': return 'bg-yellow-100 text-yellow-800';
-      case 'red': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'green': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'yellow': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'red': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
   };
 
   const getMarketTypeColor = (type: string) => {
     switch (type) {
-      case 'spot': return 'bg-blue-100 text-blue-800';
-      case 'perpetual': return 'bg-purple-100 text-purple-800';
-      case 'futures': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'spot': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      case 'perpetual': return 'bg-orange-200 text-orange-900 dark:bg-orange-800 dark:text-orange-100';
+      case 'futures': return 'bg-orange-300 text-orange-900 dark:bg-orange-700 dark:text-orange-100';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
   };
 
   const getExchangeTypeColor = (type: string) => {
     switch (type) {
-      case 'cex': return 'bg-green-100 text-green-800';
-      case 'dex': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'cex': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      case 'dex': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
   };
 
   const getSpreadColor = (spread: number) => {
-    if (spread <= 0.1) return "text-green-600";
-    if (spread <= 0.5) return "text-yellow-600";
-    if (spread <= 1.0) return "text-orange-600";
-    return "text-red-600";
+    if (spread <= 0.1) return "text-green-600 dark:text-green-400";
+    if (spread <= 0.5) return "text-yellow-600 dark:text-yellow-400";
+    if (spread <= 1.0) return "text-orange-600 dark:text-orange-400";
+    return "text-red-600 dark:text-red-400";
+  };
+
+  const formatPairDisplay = (pair: string) => {
+    if (pair.length > 20) {
+      return `${pair.substring(0, 10)}...${pair.substring(pair.length - 10)}`;
+    }
+    return pair;
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (e) {
+      return dateString; // Fallback if date is invalid
+    }
   };
 
   // Filter and sort venues
@@ -271,16 +287,16 @@ export function EnhancedMarketsDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Enhanced Markets Dashboard</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-2xl font-bold tracking-tight text-orange-500 dark:text-orange-400">Enhanced Markets Dashboard</h2>
+          <p className="text-gray-700 dark:text-gray-300">
             Comprehensive analysis of BONK trading venues with depth, spread, and trust metrics
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-xs border-orange-200 text-orange-700 bg-orange-50 dark:border-orange-700 dark:text-orange-300 dark:bg-orange-950">
             Last updated: {new Date(metadata.lastUpdated).toLocaleDateString()}
           </Badge>
-          <Button variant="outline" size="sm" onClick={fetchMarketsData}>
+          <Button variant="outline" size="sm" onClick={fetchMarketsData} className="border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -288,64 +304,64 @@ export function EnhancedMarketsDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="venues">Trading Venues</TabsTrigger>
-          <TabsTrigger value="analysis">Market Analysis</TabsTrigger>
-          <TabsTrigger value="quality">Data Quality</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 bg-orange-50 dark:bg-orange-950">
+          <TabsTrigger value="overview" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">Overview</TabsTrigger>
+          <TabsTrigger value="venues" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">Trading Venues</TabsTrigger>
+          <TabsTrigger value="analysis" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">Market Analysis</TabsTrigger>
+          <TabsTrigger value="quality" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">Data Quality</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
+            <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Venues</CardTitle>
-                <Globe className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-200">Total Venues</CardTitle>
+                <Globe className="h-4 w-4 text-orange-500 dark:text-orange-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{summary.totalVenues}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{summary.totalVenues}</div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   {metadata.totalPairs} total pairs
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-200">Total Volume</CardTitle>
+                <BarChart3 className="h-4 w-4 text-orange-500 dark:text-orange-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(summary.totalVolume)}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{formatNumber(summary.totalVolume)}</div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   24h trading volume
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg Spread</CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-200">Avg Spread</CardTitle>
+                <Target className="h-4 w-4 text-orange-500 dark:text-orange-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatPercentage(summary.averageSpread)}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{formatPercentage(summary.averageSpread)}</div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   Bid-ask spread
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Trust Score</CardTitle>
-                <Shield className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-200">Trust Score</CardTitle>
+                <Shield className="h-4 w-4 text-orange-500 dark:text-orange-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{summary.averageTrustScore}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{summary.averageTrustScore}</div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   Average quality
                 </p>
               </CardContent>
@@ -473,18 +489,19 @@ export function EnhancedMarketsDashboard() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Search</label>
+                  <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Search</label>
                   <Input
                     placeholder="Exchange or pair..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    className="border-orange-200 dark:border-orange-700 focus:border-orange-500 dark:focus:border-orange-400"
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Market Type</label>
+                  <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Market Type</label>
                   <Select value={filterMarketType} onValueChange={setFilterMarketType}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-orange-200 dark:border-orange-700 focus:border-orange-500 dark:focus:border-orange-400">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -497,9 +514,9 @@ export function EnhancedMarketsDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Exchange Type</label>
+                  <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Exchange Type</label>
                   <Select value={filterExchangeType} onValueChange={setFilterExchangeType}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-orange-200 dark:border-orange-700 focus:border-orange-500 dark:focus:border-orange-400">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -512,9 +529,9 @@ export function EnhancedMarketsDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Trust Score</label>
+                  <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Trust Score</label>
                   <Select value={filterTrustScore} onValueChange={setFilterTrustScore}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-orange-200 dark:border-orange-700 focus:border-orange-500 dark:focus:border-orange-400">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -527,9 +544,9 @@ export function EnhancedMarketsDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Exchange</label>
+                  <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Exchange</label>
                   <Select value={filterExchange} onValueChange={setFilterExchange}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-orange-200 dark:border-orange-700 focus:border-orange-500 dark:focus:border-orange-400">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -542,10 +559,10 @@ export function EnhancedMarketsDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Sort By</label>
+                  <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Sort By</label>
                   <div className="flex space-x-2">
                     <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-orange-200 dark:border-orange-700 focus:border-orange-500 dark:focus:border-orange-400">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -560,6 +577,7 @@ export function EnhancedMarketsDashboard() {
                       variant="outline"
                       size="sm"
                       onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                      className="border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950"
                     >
                       {sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
                     </Button>
@@ -578,65 +596,81 @@ export function EnhancedMarketsDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Rank</TableHead>
-                    <TableHead>Exchange</TableHead>
-                    <TableHead>Pair</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Spread</TableHead>
-                    <TableHead>24h Volume</TableHead>
-                    <TableHead>Volume %</TableHead>
-                    <TableHead>Trust</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Last Updated</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredVenues.map((venue) => (
-                    <TableRow key={`${venue.exchange}-${venue.pair}`}>
-                      <TableCell className="font-medium">#{venue.rank}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">{venue.exchange}</span>
-                          <Badge className={getExchangeTypeColor(venue.exchangeType)}>
-                            {venue.exchangeType.toUpperCase()}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono">{venue.pair}</TableCell>
-                      <TableCell>{formatPrice(venue.price)}</TableCell>
-                      <TableCell className={getSpreadColor(venue.spread)}>
-                        {formatPercentage(venue.spread)}
-                      </TableCell>
-                      <TableCell>{formatNumber(venue.volume24h)}</TableCell>
-                      <TableCell>{formatPercentage(venue.volumePercentage)}</TableCell>
-                      <TableCell>
-                        <Badge className={getTrustScoreColor(venue.trustScore)}>
-                          {venue.trustScore}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getMarketTypeColor(venue.marketType)}>
-                          {venue.marketType}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(venue.lastUpdated).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={venue.tradeUrl} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      </TableCell>
+              <div className="max-h-96 overflow-y-auto border rounded-md border-orange-200 dark:border-orange-700">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-orange-50 dark:bg-orange-950 z-10">
+                    <TableRow className="border-orange-200 dark:border-orange-700">
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-16">Rank</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-32">Exchange</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-40">Pair</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-24">Price</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-20">Spread</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-28">24h Volume</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-20">Vol %</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-20">Trust</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-24">Type</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-28">Updated</TableHead>
+                      <TableHead className="text-gray-800 dark:text-gray-200 font-semibold w-20">Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredVenues.map((venue) => (
+                      <TableRow key={`venue-${venue.rank}-${venue.exchange}-${venue.pair}`} className="hover:bg-orange-50 dark:hover:bg-orange-950 border-orange-100 dark:border-orange-800">
+                        <TableCell className="font-medium text-gray-900 dark:text-white">#{venue.rank}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-gray-900 dark:text-white truncate">{venue.exchange}</span>
+                            <Badge className={getExchangeTypeColor(venue.exchangeType)}>
+                              {venue.exchangeType.toUpperCase()}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="max-w-36 truncate cursor-help">
+                                {formatPairDisplay(venue.pair)}
+                          </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs font-mono break-all">{venue.pair}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell className="text-gray-900 dark:text-white">{formatPrice(venue.price)}</TableCell>
+                        <TableCell className={getSpreadColor(venue.spread)}>
+                          {formatPercentage(venue.spread)}
+                        </TableCell>
+                        <TableCell className="text-gray-900 dark:text-white">{formatNumber(venue.volume24h)}</TableCell>
+                        <TableCell className="text-gray-900 dark:text-white">{formatPercentage(venue.volumePercentage)}</TableCell>
+                        <TableCell>
+                          <Badge className={getTrustScoreColor(venue.trustScore)}>
+                            {venue.trustScore}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getMarketTypeColor(venue.marketType)}>
+                            {venue.marketType}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-700 dark:text-gray-300">
+                          {formatDate(venue.lastUpdated)}
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm" asChild className="border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950">
+                            <a href={venue.tradeUrl} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="mt-3 text-sm text-gray-600 dark:text-gray-400 text-center">
+                Showing {filteredVenues.length} venues • Scroll to see more • Hover over pairs to see full details
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -654,10 +688,19 @@ export function EnhancedMarketsDashboard() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredVenues.slice(0, 6).map((venue) => (
-                  <div key={`${venue.exchange}-${venue.pair}`} className="border rounded-lg p-4">
+                  <div key={`depth-${venue.rank}-${venue.exchange}-${venue.pair}`} className="border rounded-lg p-4">
                     <div className="flex justify-between items-center mb-3">
                       <h4 className="font-medium">{venue.exchange}</h4>
-                      <Badge variant="outline">{venue.pair}</Badge>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="cursor-help max-w-24 truncate">
+                            {formatPairDisplay(venue.pair)}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs font-mono break-all">{venue.pair}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     
                     <div className="space-y-3">
@@ -707,10 +750,19 @@ export function EnhancedMarketsDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {filteredVenues.slice(0, 5).map((venue) => (
-                    <div key={`${venue.exchange}-${venue.pair}`} className="flex justify-between items-center">
+                    <div key={`price-${venue.rank}-${venue.exchange}-${venue.pair}`} className="flex justify-between items-center">
                       <div>
                         <div className="font-medium">{venue.exchange}</div>
-                        <div className="text-sm text-muted-foreground">{venue.pair}</div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="text-sm text-muted-foreground cursor-help max-w-32 truncate">
+                              {formatPairDisplay(venue.pair)}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs font-mono break-all">{venue.pair}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                       <div className="text-right">
                         <div className="font-medium">{formatPrice(venue.price)}</div>
@@ -734,9 +786,21 @@ export function EnhancedMarketsDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {filteredVenues.slice(0, 5).map((venue) => (
-                    <div key={`${venue.exchange}-${venue.pair}`} className="space-y-2">
+                    <div key={`volume-${venue.rank}-${venue.exchange}-${venue.pair}`} className="space-y-2">
                       <div className="flex justify-between text-sm">
+                        <div className="flex items-center space-x-2">
                         <span>{venue.exchange}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-xs text-muted-foreground cursor-help max-w-24 truncate">
+                                ({formatPairDisplay(venue.pair)})
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs font-mono break-all">{venue.pair}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                         <span>{formatPercentage(venue.volumePercentage)}</span>
                       </div>
                       <Progress value={venue.volumePercentage} className="h-2" />

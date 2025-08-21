@@ -98,122 +98,72 @@ export function InteractivePriceChart() {
     return `$${price.toFixed(2)}`;
   };
 
-  const formatMarketCap = (marketCap: number) => {
-    if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(2)}T`;
-    if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(2)}B`;
-    if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(2)}M`;
-    if (marketCap >= 1e3) return `$${(marketCap / 1e3).toFixed(2)}K`;
-    return `$${marketCap.toFixed(2)}`;
+  const formatNumber = (num: number) => {
+    if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+    if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
+    return num.toFixed(2);
   };
 
-  const formatVolume = (volume: number) => {
-    if (volume >= 1e9) return `$${(volume / 1e9).toFixed(2)}B`;
-    if (volume >= 1e6) return `$${(volume / 1e6).toFixed(2)}M`;
-    if (volume >= 1e3) return `$${(volume / 1e3).toFixed(2)}K`;
-    return `$${volume.toFixed(2)}`;
+  const formatPercentage = (pct: number) => {
+    const isPositive = pct >= 0;
+    return (
+      <span className={`inline-flex items-center space-x-1 ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+        {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+        <span>{Math.abs(pct).toFixed(2)}%</span>
+      </span>
+    );
   };
 
-  const formatPercentage = (percent: number) => {
-    const sign = percent >= 0 ? "+" : "";
-    return `${sign}${percent.toFixed(2)}%`;
-  };
-
-  const getChangeColor = (change: number) => {
-    return change >= 0 ? "text-green-500" : "text-red-500";
-  };
-
-  const getChangeIcon = (change: number) => {
-    return change >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />;
-  };
-
-  const formatTimestamp = (timestamp: number) => {
-    const date = new Date(timestamp);
-    if (selectedRange === "1") {
+  // Format date for X-axis display
+  const formatChartDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) {
       return date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
+        hour: '2-digit', 
         minute: '2-digit',
-        hour12: true 
+        hour12: false 
       });
-    } else if (selectedRange === "7") {
+    } else if (diffDays <= 7) {
       return date.toLocaleDateString('en-US', { 
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
-      });
-    } else if (selectedRange === "30") {
-      return date.toLocaleDateString('en-US', { 
-        month: 'short',
-        day: 'numeric'
+        month: 'short', 
+        day: 'numeric' 
       });
     } else {
       return date.toLocaleDateString('en-US', { 
-        month: 'short',
-        year: '2-digit'
+        month: 'short', 
+        day: 'numeric' 
       });
     }
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-background border border-border rounded-lg p-3 shadow-lg backdrop-blur-sm">
-          <div className="text-sm font-medium text-muted-foreground">
-            {new Date(data.timestamp).toLocaleString()}
-          </div>
-          <div className="mt-2 space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-              <span className="text-sm font-medium">
-                {chartMode === "price" ? "Price" : "Market Cap"}: {
-                  chartMode === "price" ? formatPrice(data.price) : formatMarketCap(data.marketCap)
-                }
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="text-sm font-medium">Volume: {formatVolume(data.volume)}</span>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   if (loading) {
-    return (
-      <Card className="w-full border-border bg-card">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-10 w-48" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-64 w-full mb-4" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <ChartSkeleton />;
   }
 
   if (error) {
     return (
-      <Card className="w-full border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-red-500">Chart Error</CardTitle>
-          <CardDescription>{error}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={() => fetchChartData(selectedRange)} className="w-full">
-            <RefreshCw className="w-4 h-4 mr-2" />
+      <Card className="border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-950">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+              <TrendingDown className="h-5 w-5" />
+              <span>{error}</span>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => fetchChartData(selectedRange)}
+              className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-950"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
             Retry
           </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -221,181 +171,240 @@ export function InteractivePriceChart() {
 
   if (!chartData) {
     return (
-      <Card className="w-full border-border bg-card">
+      <Card className="border-orange-200 dark:border-orange-700">
         <CardContent className="pt-6">
-          <p className="text-center text-muted-foreground">No chart data available</p>
+          <div className="text-center text-gray-500 dark:text-gray-400">No chart data available</div>
         </CardContent>
       </Card>
     );
   }
 
-  const { summary, metadata, dataPoints } = chartData;
-
-  // Debug logging to see what data we're receiving
-  console.log('Chart Component Debug:', {
-    chartMode,
-    summary,
-    dataPointsLength: dataPoints.length,
-    firstDataPoint: dataPoints[0],
-    lastDataPoint: dataPoints[dataPoints.length - 1],
-    marketCapRange: {
-      min: Math.min(...dataPoints.map(d => d.marketCap)),
-      max: Math.max(...dataPoints.map(d => d.marketCap))
-    }
-  });
-
-  // Calculate proper Y-axis ranges for better visualization
-  const priceRange = summary.highestPrice - summary.lowestPrice;
-  const volumeRange = Math.max(...dataPoints.map(d => d.volume)) - Math.min(...dataPoints.map(d => d.volume));
-  
-  const minPrice = summary.lowestPrice - (priceRange * 0.1);
-  const maxPrice = summary.highestPrice + (priceRange * 0.1);
-  const minVolume = Math.min(...dataPoints.map(d => d.volume)) - (volumeRange * 0.1);
-  const maxVolume = Math.max(...dataPoints.map(d => d.volume)) + (volumeRange * 0.1);
+  const { dataPoints, summary, metadata } = chartData;
 
   return (
-    <Card className="w-full border-border bg-card shadow-lg">
-      <CardHeader className="border-b border-border pb-2 md:pb-3">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-2">
+    <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+      <CardHeader>
+        <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2 text-foreground text-sm md:text-base">
-              <Activity className="w-3 h-3 md:w-4 md:h-4 text-purple-500" />
-              BONK {chartMode === "price" ? "Price" : "Market Cap"} Chart
+            <CardTitle className="flex items-center space-x-2 text-orange-600 dark:text-orange-400">
+              <BarChart3 className="h-6 w-6" />
+              <span>BONK Price Chart</span>
             </CardTitle>
-            <CardDescription className="text-muted-foreground text-xs">
-              {metadata.timeRange} • {metadata.totalPoints} data points • Last updated: {new Date(metadata.lastUpdated).toLocaleString()}
+            <CardDescription className="text-gray-600 dark:text-gray-400">
+              {metadata.timeRange} • {metadata.totalPoints} data points • Last updated: {new Date(metadata.lastUpdated).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              })}
             </CardDescription>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Price/Market Cap Toggle */}
-            <ToggleGroup type="single" value={chartMode} onValueChange={(value) => value && setChartMode(value as "price" | "marketCap")}>
-              <ToggleGroupItem value="price" className="px-2 py-1 text-xs bg-background border-border hover:bg-accent">
-                <DollarSign className="w-3 h-3 mr-1 text-purple-500" />
-                Price
-              </ToggleGroupItem>
-              <ToggleGroupItem value="marketCap" className="px-2 py-1 text-xs bg-background border-border hover:bg-accent">
-                <BarChart3 className="w-3 h-3 mr-1 text-blue-500" />
-                Market Cap
-              </ToggleGroupItem>
-            </ToggleGroup>
-
-            {/* Time Range Selector */}
-            <ToggleGroup type="single" value={selectedRange} onValueChange={(value) => value && setSelectedRange(value)}>
-              {timeRanges.map((range) => (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => fetchChartData(selectedRange)}
+            className="border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        {/* Chart Controls */}
+        <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+          <div className="flex items-center space-x-4">
+            <ToggleGroup 
+              type="single" 
+              value={selectedRange} 
+              onValueChange={(value) => value && setSelectedRange(value)}
+              className="bg-gray-50 dark:bg-gray-900"
+            >
+                {timeRanges.map((range) => (
                 <ToggleGroupItem 
                   key={range.value} 
                   value={range.value} 
-                  className="px-2 py-1 text-xs bg-background border-border hover:bg-accent data-[state=on]:bg-purple-500 data-[state=on]:text-white"
+                  className="data-[state=on]:bg-orange-500 data-[state=on]:text-white dark:data-[state=on]:bg-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900"
                 >
-                  {range.label}
+                    {range.label}
                 </ToggleGroupItem>
-              ))}
+                ))}
+            </ToggleGroup>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <ToggleGroup 
+              type="single" 
+              value={chartMode} 
+              onValueChange={(value) => value && setChartMode(value as "price" | "marketCap")}
+              className="bg-gray-50 dark:bg-gray-900"
+            >
+              <ToggleGroupItem 
+                value="price" 
+                className="data-[state=on]:bg-orange-500 data-[state=on]:text-white dark:data-[state=on]:bg-orange-600 data-[state=off]:bg-white data-[state=off]:text-gray-700 dark:data-[state=off]:bg-gray-800 dark:data-[state=off]:text-gray-300"
+              >
+                <DollarSign className="h-4 w-4 mr-2" />
+                Price
+              </ToggleGroupItem>
+              <ToggleGroupItem 
+                value="marketCap" 
+                className="data-[state=on]:bg-blue-600 data-[state=on]:text-white dark:data-[state=on]:bg-blue-700 data-[state=off]:bg-white data-[state=off]:text-gray-700 dark:data-[state=off]:bg-gray-800 dark:data-[state=off]:text-gray-300"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Market Cap
+              </ToggleGroupItem>
             </ToggleGroup>
           </div>
         </div>
-      </CardHeader>
-
-      <CardContent className="space-y-3 md:space-y-4 p-4 md:p-6">
+      
         {/* Chart */}
-        <div className="h-80 md:h-96 w-full bg-muted/10 rounded-lg p-3 md:p-4 border border-border">
+        <div className="h-96 w-full">
+          <div className="flex items-center justify-center mb-2">
+            <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+              chartMode === "price" 
+                ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" 
+                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+            }`}>
+              {chartMode === "price" ? "Price Chart" : "Market Cap Chart"}
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={dataPoints} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+            <AreaChart data={dataPoints}>
               <defs>
-                <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#f97316" stopOpacity={0.1}/>
                 </linearGradient>
-                <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.6}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                <linearGradient id="colorMarketCap" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#2563eb" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0.1}/>
                 </linearGradient>
               </defs>
-              
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-              
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.3} />
               <XAxis 
-                dataKey="timestamp" 
-                tickFormatter={formatTimestamp}
+                dataKey="date" 
                 stroke="#6b7280"
-                fontSize={11}
+                fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tick={{ fill: '#9ca3af' }}
+                tickFormatter={formatChartDate}
               />
-              
               <YAxis 
-                yAxisId="left"
-                domain={[minPrice, maxPrice]}
                 stroke="#6b7280"
-                fontSize={11}
+                fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tick={{ fill: '#9ca3af' }}
-                tickFormatter={(value) => 
-                  chartMode === "price" ? formatPrice(value) : formatMarketCap(value)
-                }
+                tickFormatter={(value) => {
+                  if (chartMode === "price") {
+                    return formatPrice(value);
+                  }
+                  return `$${formatNumber(value)}`;
+                }}
               />
-              
-              <YAxis 
-                yAxisId="right"
-                orientation="right"
-                domain={[minVolume, maxVolume]}
-                stroke="#6b7280"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                tick={{ fill: '#9ca3af' }}
-                tickFormatter={formatVolume}
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: `1px solid ${chartMode === "price" ? "#f97316" : "#2563eb"}`,
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}
+                labelStyle={{ color: '#374151', fontWeight: '600' }}
+                formatter={(value: any, name: any) => {
+                  if (chartMode === "price") {
+                    return [formatPrice(value), "Price"];
+                  }
+                  return [`$${formatNumber(value)}`, "Market Cap"];
+                }}
+                labelFormatter={(label) => `Date: ${formatChartDate(label)}`}
               />
-              
-              <Tooltip content={<CustomTooltip />} />
-              
-              {/* Main Chart Line */}
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey={chartMode === "price" ? "price" : "marketCap"}
-                stroke="#8b5cf6"
-                strokeWidth={3}
-                dot={false}
-                activeDot={{ r: 8, fill: "#8b5cf6", stroke: "#ffffff", strokeWidth: 2 }}
-              />
-              
-              {/* Area Fill */}
               <Area
-                yAxisId="left"
                 type="monotone"
                 dataKey={chartMode === "price" ? "price" : "marketCap"}
-                stroke="none"
-                fill="url(#priceGradient)"
-                fillOpacity={0.4}
+                stroke={chartMode === "price" ? "#f97316" : "#2563eb"}
+                strokeWidth={2}
+                fill={chartMode === "price" ? "url(#colorPrice)" : "url(#colorMarketCap)"}
+                fillOpacity={0.6}
               />
-              
-              {/* Volume Bars */}
-              <Bar
-                yAxisId="right"
-                dataKey="volume"
-                fill="url(#volumeGradient)"
-                opacity={0.8}
-                radius={[3, 3, 0, 0]}
-              />
-            </ComposedChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Refresh Button */}
-        <div className="flex justify-center pt-2 md:pt-3">
-          <Button 
-            onClick={() => fetchChartData(selectedRange)} 
-            variant="outline" 
-            size="sm"
-            className="px-3 md:px-4 py-1 h-7 md:h-8 text-xs md:text-sm border-border hover:bg-accent"
-          >
-            <RefreshCw className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" /> 
-            <span className="hidden sm:inline">Refresh Data</span>
-            <span className="sm:hidden">Refresh</span>
-          </Button>
+        {/* Performance Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 border border-orange-200 dark:border-orange-700 rounded-lg bg-orange-50 dark:bg-orange-950">
+            <div className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">
+              {formatPercentage(summary.changePercent)}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Price Change</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {formatPrice(summary.changeAmount)}
+            </div>
+          </div>
+          
+          <div className="text-center p-4 border border-blue-200 dark:border-blue-700 rounded-lg bg-blue-50 dark:bg-blue-950">
+            <div className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">
+              ${formatNumber(summary.totalVolume)}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Volume</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Avg: ${formatNumber(summary.avgVolume)}
+            </div>
+          </div>
+          
+          <div className="text-center p-4 border border-purple-200 dark:border-purple-700 rounded-lg bg-purple-50 dark:bg-purple-950">
+            <div className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">
+              ${formatNumber(summary.highestVolume)}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Peak Volume</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Low: ${formatNumber(summary.lowestVolume)}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <Card className="border-orange-200 dark:border-orange-700">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-8 w-20" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="text-center p-4 border border-orange-200 dark:border-orange-700 rounded-lg bg-orange-50 dark:bg-orange-950">
+              <Skeleton className="h-8 w-24 mx-auto mb-2" />
+              <Skeleton className="h-4 w-20 mx-auto" />
+            </div>
+          ))}
+        </div>
+        
+        <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        
+        <Skeleton className="h-96 w-full" />
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="text-center p-4 border border-orange-200 dark:border-orange-700 rounded-lg bg-orange-50 dark:bg-orange-950">
+              <Skeleton className="h-6 w-20 mx-auto mb-2" />
+              <Skeleton className="h-4 w-16 mx-auto mb-1" />
+              <Skeleton className="h-3 w-24 mx-auto" />
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

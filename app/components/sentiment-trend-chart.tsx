@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TrendingUp, TrendingDown, Activity, MessageSquare, Globe } from "lucide-react"
-import type { BonkData } from "../page"
+import type { BonkData } from "../context/bonk-context"
 
 interface SentimentPoint {
   timestamp: string
@@ -18,12 +18,15 @@ interface SentimentPoint {
 }
 
 interface SentimentTrendChartProps {
-  bonkData: BonkData
+  bonkData?: BonkData
 }
 
 export function SentimentTrendChart({ bonkData }: SentimentTrendChartProps) {
   const [timeframe, setTimeframe] = useState("24h")
   const [sentimentData, setSentimentData] = useState<SentimentPoint[]>([])
+
+  // Provide default values if bonkData is undefined
+  const safeBonkData = bonkData || { socialVolume: 1000000 } // Default social volume
 
   useEffect(() => {
     // Generate mock sentiment trend data
@@ -51,14 +54,14 @@ export function SentimentTrendChart({ bonkData }: SentimentTrendChartProps) {
           social: Math.max(0, Math.min(100, social)),
           news: Math.max(0, Math.min(100, news)),
           technical: Math.max(0, Math.min(100, technical)),
-          volume: bonkData.socialVolume * (0.5 + Math.random()),
+          volume: safeBonkData.socialVolume * (0.5 + Math.random()),
         })
       }
       return data
     }
 
     setSentimentData(generateSentimentData())
-  }, [timeframe, bonkData.socialVolume])
+  }, [timeframe, safeBonkData.socialVolume])
 
   const getSentimentColor = (score: number) => {
     if (score >= 70) return "text-green-500"

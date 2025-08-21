@@ -15,7 +15,7 @@ import {
   Activity,
   AlertTriangle,
 } from "lucide-react"
-import type { BonkData } from "../page"
+import type { BonkData } from "../context/bonk-context"
 
 interface WhaleTransaction {
   id: string
@@ -30,13 +30,16 @@ interface WhaleTransaction {
 }
 
 interface WhaleMovementTrackerProps {
-  bonkData: BonkData
+  bonkData?: BonkData
 }
 
 export function WhaleMovementTracker({ bonkData }: WhaleMovementTrackerProps) {
   const [timeframe, setTimeframe] = useState("24h")
   const [transactionType, setTransactionType] = useState("all")
   const [whaleTransactions, setWhaleTransactions] = useState<WhaleTransaction[]>([])
+
+  // Provide default values if bonkData is undefined
+  const safeBonkData = bonkData || { price: 0.000001 } // Default price
 
   useEffect(() => {
     generateWhaleData()
@@ -53,7 +56,7 @@ export function WhaleMovementTracker({ bonkData }: WhaleMovementTrackerProps) {
     for (let i = 0; i < transactionCount; i++) {
       const type = Math.random() > 0.5 ? "buy" : Math.random() > 0.3 ? "sell" : "transfer"
       const amount = Math.floor(Math.random() * 50000000000) + 1000000000 // 1B to 50B BONK
-      const usdValue = amount * bonkData.price
+      const usdValue = amount * safeBonkData.price
       const impact = usdValue > 100000 ? "high" : usdValue > 50000 ? "medium" : "low"
       const priceChange = (Math.random() - 0.5) * 10 // -5% to +5%
 

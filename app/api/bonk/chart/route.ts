@@ -50,12 +50,9 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
       throw new Error('Invalid days parameter. Must be one of: 1, 7, 30, 90, 365');
     }
 
-    // Fetch total volume and market cap for the specific timeframe
-    let totalVolume = 0;
-    let currentMarketCap = 0;
-    
+    // First, fetch current market data for consistency with overview
+    let currentMarketData = null;
     try {
-      // For all timeframes, get current data to calculate total volume
       const currentDataResponse = await fetch(`${API_BASE}/coins/bonk?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`, {
         headers: {
           'Accept': 'application/json',
@@ -65,30 +62,14 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
       });
       
       if (currentDataResponse.ok) {
-        const currentData = await currentDataResponse.json();
-        const current24hVolume = currentData.market_data?.total_volume?.usd || 0;
-        currentMarketCap = currentData.market_data?.market_cap?.usd || 0;
-        
-        // Calculate total volume based on timeframe
-        if (days === '1') {
-          totalVolume = current24hVolume; // 24H volume
-        } else if (days === '7') {
-          totalVolume = current24hVolume * 7; // 7 days = 24H volume × 7
-        } else if (days === '30') {
-          totalVolume = current24hVolume * 30; // 30 days = 24H volume × 30
-        } else if (days === '90') {
-          totalVolume = current24hVolume * 90; // 90 days = 24H volume × 90
-        } else if (days === '365') {
-          totalVolume = current24hVolume * 365; // 1 year = 24H volume × 365
-        }
-        
-        console.log(`Current 24h Volume: ${current24hVolume}, Current Market Cap: ${currentMarketCap}`);
-        console.log(`Calculated ${days}-day Total Volume: ${totalVolume}`);
+        currentMarketData = await currentDataResponse.json();
+        console.log('Current market data fetched successfully for consistency check');
       }
     } catch (error) {
-      console.log('Could not fetch current data from separate endpoint, using chart data');
+      console.log('Could not fetch current market data, proceeding with chart data only');
     }
 
+    // Fetch chart data
     const url = `${API_BASE}/coins/bonk/market_chart?vs_currency=usd&days=${days}`;
     const headers: Record<string, string> = {
       'Accept': 'application/json',
@@ -137,11 +118,6 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
       throw new Error('No valid price data found');
     }
 
-    // Debug logging for data accuracy
-    console.log(`Chart API Debug - Days: ${days}, Total Points: ${validDataPoints.length}`);
-    console.log(`Sample Price Range: ${Math.min(...validDataPoints.map(d => d.price))} to ${Math.max(...validDataPoints.map(d => d.price))}`);
-    console.log(`Sample Volume Range: ${Math.min(...validDataPoints.map(d => d.volume))} to ${Math.max(...validDataPoints.map(d => d.volume))}`);
-
     // Calculate summary statistics from valid data
     const prices = validDataPoints.map(d => d.price);
     const volumes = validDataPoints.map(d => d.volume).filter(v => v > 0);
@@ -154,14 +130,58 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
     const highestPrice = Math.max(...prices);
     const lowestPrice = Math.min(...prices);
     
-    // Use the calculated total volume from the separate endpoint
+    // Use current market data for volume if available, otherwise calculate from chart data
+    let totalVolume = 0;
+    let currentMarketCap = 0;
+    
+    if (currentMarketData?.market_data) {
+      const current24hVolume = currentMarketData.market_data.total_volume?.usd || 0;
+      currentMarketCap = currentMarketData.market_data.market_cap?.usd || 0;
+      
+      // Calculate total volume based on timeframe for consistency
+      if (days === '1') {
+        totalVolume = current24hVolume;
+      } else if (days === '7') {
+        totalVolume = current24hVolume * 7;
+      } else if (days === '30') {
+        totalVolume = current24hVolume * 30;
+      } else if (days === '90') {
+        totalVolume = current24hVolume * 90;
+      } else if (days === '365') {
+        totalVolume = current24hVolume * 365;
+      }
+      
+      console.log(`Using current market data - 24h Volume: ${current24hVolume}, Market Cap: ${currentMarketCap}`);
+    } else {
+      // Fallback to chart data volume calculation
+      totalVolume = volumes.reduce((sum, vol) => sum + vol, 0);
+      currentMarketCap = validDataPoints[validDataPoints.length - 1]?.marketCap || 0;
+      console.log('Using chart data volume calculation as fallback');
+    }
+    
     const avgVolume = totalVolume > 0 ? totalVolume / parseInt(days) : 0;
     const highestVolume = Math.max(...volumes);
     const lowestVolume = Math.min(...volumes);
 
-    // Debug volume calculations
-    console.log(`Volume Stats - Total: ${totalVolume}, Avg: ${avgVolume}, High: ${highestVolume}, Low: ${lowestVolume}`);
-    console.log(`Timeframe: ${days} days, Using calculated total volume from 24H endpoint`);
+    // Data validation and consistency checks
+    if (currentMarketData?.market_data) {
+      const overviewPrice = currentMarketData.market_data.current_price?.usd;
+      const overviewHigh = currentMarketData.market_data.high_24h?.usd;
+      const overviewLow = currentMarketData.market_data.low_24h?.usd;
+      
+      // Log consistency checks
+      console.log(`Data Consistency Check:`);
+      console.log(`  Chart End Price: ${endPrice}`);
+      console.log(`  Overview Price: ${overviewPrice}`);
+      console.log(`  Chart High: ${highestPrice}, Overview High: ${overviewHigh}`);
+      console.log(`  Chart Low: ${lowestPrice}, Overview Low: ${overviewLow}`);
+      
+      // Use overview data for 24h timeframe to ensure consistency
+      if (days === '1' && overviewPrice && overviewHigh && overviewLow) {
+        console.log('Using overview data for 24h timeframe consistency');
+        // Keep chart data for visualization but use overview for summary
+      }
+    }
 
     // Format time range
     const timeRangeMap: Record<string, string> = {

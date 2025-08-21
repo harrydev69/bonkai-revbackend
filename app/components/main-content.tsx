@@ -25,9 +25,6 @@ import { NewsUpdates } from "./news-updates";
 
 import { EnhancedMarketsDashboard } from "./enhanced-markets-dashboard";
 
-// Import Bonk ecosystem ticker
-import { BonkEcosystemTicker } from "./bonk-ecosystem-ticker";
-
 export function MainContent() {
   const [activeTab, setActiveTab] = useState("letsbonk");
   const [bonkData, setBonkData] = useState<any>(null);
@@ -186,8 +183,8 @@ export function MainContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight">BONK Analytics Dashboard</h1>
-          <p className="text-xs md:text-sm text-muted-foreground">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-orange-600 dark:text-orange-400">BONK Analytics Dashboard</h1>
+          <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
             Comprehensive analytics and insights for the BONK ecosystem
           </p>
         </div>
@@ -198,325 +195,190 @@ export function MainContent() {
         
         {/* Left Sidebar - Market Data & Stats */}
         <div className="lg:col-span-2 space-y-3 md:space-y-4">
-          {/* BONK Price Card */}
-          <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3 pt-4 bg-gradient-to-r from-purple-500/5 to-blue-500/5">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Coins className="w-3 h-3 text-purple-500" />
-                BONK Price
-              </CardTitle>
+          {/* Current Price Card */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Current Price</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 pb-4 px-3">
-              <div className="text-center">
-                <div className="text-xl font-bold text-foreground">
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                   ${formatPrice(getCurrentPrice())}
                 </div>
-                <div className={`text-xs ${get24hChange() > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {get24hChange() > 0 ? '+' : ''}
-                  {formatPercentage(get24hChange())}%
-                </div>
+              <div className={`flex items-center text-sm ${get24hChange() >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {get24hChange() >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
+                {formatPercentage(Math.abs(get24hChange()))}%
               </div>
             </CardContent>
           </Card>
 
-          {/* Market Stats */}
-          <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3 pt-4 bg-gradient-to-r from-blue-500/5 to-cyan-500/5">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <BarChart3 className="w-3 h-3 text-blue-500" />
-                Market Stats
-              </CardTitle>
+          {/* Market Cap Card */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Market Cap</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 pb-4 px-3">
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">Market Cap</span>
-                <span className="text-xs font-medium">
+            <CardContent>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
                   ${formatNumber(getMarketCap(), 1e9, 'B')}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                Rank #{getMarketRank() || 'N/A'}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 24h Volume Card */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">24h Volume</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
+                ${formatNumber(getVolume24h(), 1e6, 'M')}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Supply Info Card */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Supply</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Circulating:</span>
+                <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                  {formatNumber(getCirculatingSupply(), 1e9, 'B')}
                 </span>
               </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">24h Volume</span>
-                <span className="text-xs font-medium">
-                  ${formatNumber(getVolume24h(), 1e6, 'M')}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">Circulating Supply</span>
-                <span className="text-xs font-medium">
-                  {formatNumber(getCirculatingSupply(), 1e12, 'T')}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">Total Supply</span>
-                <span className="text-xs font-medium">
-                  {formatNumber(getTotalSupply(), 1e12, 'T')}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">Max Supply</span>
-                <span className="text-xs font-medium">
-                  {formatNumber(getMaxSupply(), 1e12, 'T')}
+              <div className="text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Max:</span>
+                <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                  {formatNumber(getMaxSupply(), 1e9, 'B')}
                 </span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Price Range */}
-          <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3 pt-4 bg-gradient-to-r from-green-500/5 to-emerald-500/5">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <TrendingUp className="w-3 h-3 text-green-500" />
-                Price Range (24h)
-              </CardTitle>
+          {/* High/Low Card */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">24h Range</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 pb-4 px-3">
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">High</span>
-                <span className="text-xs font-medium text-green-500">
+            <CardContent className="space-y-2">
+              <div className="text-sm">
+                <span className="text-green-600 dark:text-green-400">H:</span>
+                <span className="ml-2 font-medium text-gray-900 dark:text-white">
                   ${formatPrice(getHigh24h())}
                 </span>
               </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">Low</span>
-                <span className="text-xs font-medium text-red-500">
+              <div className="text-sm">
+                <span className="text-red-600 dark:text-red-400">L:</span>
+                <span className="ml-2 font-medium text-gray-900 dark:text-white">
                   ${formatPrice(getLow24h())}
                 </span>
               </div>
             </CardContent>
           </Card>
-
-          {/* Token Info */}
-          <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3 pt-4 bg-gradient-to-r from-orange-500/5 to-amber-500/5">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Building2 className="w-3 h-3 text-orange-500" />
-                Token Info
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 pb-4 px-3">
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">Market Rank</span>
-                <span className="text-xs font-medium">
-                  #{getMarketRank() || 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">FDV</span>
-                <span className="text-xs font-medium">
-                  ${formatNumber(getFullyDilutedValuation(), 1e9, 'B')}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">Vol/Mkt Cap</span>
-                <span className="text-xs font-medium">
-                  {(() => {
-                    const volume = getVolume24h();
-                    const marketCap = getMarketCap();
-                    if (volume && marketCap && marketCap > 0) {
-                      return ((volume / marketCap) * 100).toFixed(2) + '%';
-                    }
-                    return 'N/A';
-                  })()}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Links */}
-          <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3 pt-4 bg-gradient-to-r from-green-500/5 to-teal-500/5">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <ExternalLink className="w-3 h-3 text-green-500" />
-                Quick Links
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 pb-4 px-3">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start h-8 text-xs hover:bg-green-500/10 hover:border-green-500/30"
-                onClick={() => window.open('https://bonkcoin.com', '_blank')}
-              >
-                <Globe className="w-3 h-3 mr-1" />
-                BONK Website
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start h-8 text-xs hover:bg-blue-500/10 hover:border-blue-500/30"
-                onClick={() => window.open('https://raydium.io/swap/?inputCurrency=sol&outputCurrency=DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', '_blank')}
-              >
-                <Building2 className="w-3 h-3 mr-1" />
-                Buy BONK
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start h-8 text-xs hover:bg-purple-500/10 hover:border-purple-500/30"
-                onClick={() => window.open('https://letsbonk.fun', '_blank')}
-              >
-                <Coins className="w-3 h-3 mr-1" />
-                Let'sBonk
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start h-8 text-xs hover:bg-orange-500/10 hover:border-orange-500/30"
-                onClick={() => window.open('https://solscan.io/token/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', '_blank')}
-              >
-                <BarChart3 className="w-3 h-3 mr-1" />
-                Solscan
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start h-8 text-xs hover:bg-blue-500/10 hover:border-blue-500/30"
-                onClick={() => window.open('https://twitter.com/bonk_inu', '_blank')}
-              >
-                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                </svg>
-                Twitter
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start h-8 text-xs hover:bg-green-500/10 hover:border-green-500/30"
-                onClick={() => window.open('https://bonkcoin.com', '_blank')}
-              >
-                <Globe className="w-3 h-3 mr-1" />
-                Website
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start h-8 text-xs hover:bg-purple-500/10 hover:border-purple-500/30"
-                onClick={() => window.open('https://bonkcoin.com/blog', '_blank')}
-              >
-                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
-                  <path d="M14 2v6h6"/>
-                  <path d="M16 13H8"/>
-                  <path d="M16 17H8"/>
-                  <path d="M10 9H8"/>
-                </svg>
-                Blog
-              </Button>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Center - Main Chart Area */}
-        <div className="lg:col-span-7 space-y-3 md:space-y-4">
-          {/* Main BONK Chart */}
-          <InteractivePriceChart />
+        {/* Center Column - Main Content */}
+        <div className="lg:col-span-8 space-y-4 md:space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 bg-orange-50 dark:bg-orange-950">
+              <TabsTrigger value="letsbonk" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">
+                <Globe className="h-4 w-4 mr-2" />
+                Ecosystem
+              </TabsTrigger>
+              <TabsTrigger value="markets" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">
+                <Building2 className="h-4 w-4 mr-2" />
+                Markets
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger value="news" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">
+                <Newspaper className="h-4 w-4 mr-2" />
+                News
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="letsbonk" className="space-y-4">
+              <ComprehensiveBONKDashboard />
+            </TabsContent>
           
-          {/* Enhanced Markets Dashboard */}
+            <TabsContent value="markets" className="space-y-4">
           <EnhancedMarketsDashboard />
+              <EnhancedMarketsTable />
+            </TabsContent>
 
-          {/* Community Sentiment */}
-          <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3 pt-4 bg-gradient-to-r from-purple-500/5 to-pink-500/5">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Activity className="w-3 h-3 text-purple-500" />
-                Community
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
+            <TabsContent value="analytics" className="space-y-4">
+              <SupplyChart />
+              <VolumeHeatmap />
               <SentimentTrendChart bonkData={bonkData} />
-            </CardContent>
-          </Card>
-
-          {/* Social Trends */}
-          <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3 pt-4 bg-gradient-to-r from-blue-500/5 to-indigo-500/5">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <TrendingUp className="w-3 h-3 text-blue-500" />
-                Social Trends
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-4 px-4">
+              <MindshareRadarChart bonkData={bonkData} />
               <SocialWordCloud bonkData={bonkData} />
+              <WhaleMovementTracker bonkData={bonkData} />
+            </TabsContent>
+
+            <TabsContent value="news" className="space-y-4">
+              <NewsUpdates />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Right Sidebar - Quick Actions & Info */}
+        <div className="lg:col-span-2 space-y-3 md:space-y-4">
+          {/* Quick Actions */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button variant="outline" size="sm" className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View on CoinGecko
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950">
+                <Activity className="h-4 w-4 mr-2" />
+                Trading View
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Market Status */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Market Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Active Trading</span>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Last updated: {new Date().toLocaleTimeString()}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Data Sources */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Data Sources</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center space-x-2 text-sm">
+                <Coins className="h-4 w-4 text-orange-500" />
+                <span className="text-gray-700 dark:text-gray-300">CoinGecko</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm">
+                <BarChart3 className="h-4 w-4 text-orange-500" />
+                <span className="text-gray-700 dark:text-gray-300">Market Data</span>
+              </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Right Sidebar - News Only */}
-        <div className="lg:col-span-3 space-y-3 md:space-y-4 pr-4">
-          {/* BONK News & Updates */}
-          <NewsUpdates />
-        </div>
-      </div>
-
-      {/* Bottom Section - Additional Components */}
-      <div className="space-y-3 md:space-y-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="letsbonk" className="flex items-center gap-2 text-xs md:text-sm">
-              <Globe className="w-3 h-3 md:w-4 md:h-4" />
-              LetsBonk.fun
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2 text-xs md:text-sm">
-              <BarChart3 className="w-3 h-3 md:w-4 md:h-4" />
-              Advanced Analytics
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="letsbonk" className="space-y-3 md:space-y-4 mt-3 md:mt-4">
-            {/* LetsBonk.fun Content */}
-            <Card className="border-border bg-card shadow-sm">
-              <CardHeader className="pb-3 pt-4">
-                <CardTitle className="text-sm md:text-base">LetsBonk.fun Ecosystem</CardTitle>
-                <CardDescription className="text-xs md:text-sm">
-                  Discover and track the latest projects in the BONK ecosystem
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pb-4 px-4">
-                <BonkEcosystemTicker />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-3 md:space-y-4 mt-3 md:mt-4">
-            {/* Comprehensive BONK Dashboard - Main Overview */}
-            <ComprehensiveBONKDashboard />
-            
-            {/* Supply Analysis */}
-            <SupplyChart />
-            
-            {/* Whale Movement Tracker */}
-            <WhaleMovementTracker bonkData={bonkData} />
-            
-            {/* Advanced Tools */}
-            <Card className="border-border bg-card shadow-sm">
-              <CardHeader className="pb-3 pt-4">
-                <CardTitle className="text-sm md:text-base flex items-center gap-2">
-                  <Activity className="w-3 h-3 md:w-4 md:h-4" />
-                  Advanced Analytics Tools
-                </CardTitle>
-                <CardDescription className="text-xs md:text-sm">
-                  Professional-grade tools for deep market analysis
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pb-4 px-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-                  <Button variant="outline" className="h-14 md:h-16 flex flex-col items-center justify-center gap-1 md:gap-2">
-                    <BarChart3 className="w-4 h-4 md:w-5 md:h-5" />
-                    <span className="text-xs md:text-sm">Technical Analysis</span>
-                  </Button>
-                  <Button variant="outline" className="h-14 md:h-16 flex flex-col items-center justify-center gap-1 md:gap-2">
-                    <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />
-                    <span className="text-xs md:text-sm">Trend Analysis</span>
-                  </Button>
-                  <Button variant="outline" className="h-14 md:h-16 flex flex-col items-center justify-center gap-1 md:gap-2">
-                    <Globe className="w-4 h-4 md:w-5 md:h-5" />
-                    <span className="text-xs md:text-sm">Market Research</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Target, Crown, TrendingUp, Users, MessageSquare, Activity } from "lucide-react"
-import type { BonkData } from "../page"
+import type { BonkData } from "../context/bonk-context"
 
 interface TokenData {
   name: string
@@ -19,7 +19,7 @@ interface TokenData {
 }
 
 interface MindshareRadarChartProps {
-  bonkData: BonkData
+  bonkData?: BonkData
 }
 
 export function MindshareRadarChart({ bonkData }: MindshareRadarChartProps) {
