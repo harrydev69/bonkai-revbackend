@@ -50,6 +50,45 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
       throw new Error('Invalid days parameter. Must be one of: 1, 7, 30, 90, 365');
     }
 
+    // Fetch total volume and market cap for the specific timeframe
+    let totalVolume = 0;
+    let currentMarketCap = 0;
+    
+    try {
+      // For all timeframes, get current data to calculate total volume
+      const currentDataResponse = await fetch(`${API_BASE}/coins/bonk?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'BONKai-Analytics/1.0',
+          ...(API_KEY && { 'x-cg-pro-api-key': API_KEY })
+        }
+      });
+      
+      if (currentDataResponse.ok) {
+        const currentData = await currentDataResponse.json();
+        const current24hVolume = currentData.market_data?.total_volume?.usd || 0;
+        currentMarketCap = currentData.market_data?.market_cap?.usd || 0;
+        
+        // Calculate total volume based on timeframe
+        if (days === '1') {
+          totalVolume = current24hVolume; // 24H volume
+        } else if (days === '7') {
+          totalVolume = current24hVolume * 7; // 7 days = 24H volume × 7
+        } else if (days === '30') {
+          totalVolume = current24hVolume * 30; // 30 days = 24H volume × 30
+        } else if (days === '90') {
+          totalVolume = current24hVolume * 90; // 90 days = 24H volume × 90
+        } else if (days === '365') {
+          totalVolume = current24hVolume * 365; // 1 year = 24H volume × 365
+        }
+        
+        console.log(`Current 24h Volume: ${current24hVolume}, Current Market Cap: ${currentMarketCap}`);
+        console.log(`Calculated ${days}-day Total Volume: ${totalVolume}`);
+      }
+    } catch (error) {
+      console.log('Could not fetch current data from separate endpoint, using chart data');
+    }
+
     const url = `${API_BASE}/coins/bonk/market_chart?vs_currency=usd&days=${days}`;
     const headers: Record<string, string> = {
       'Accept': 'application/json',
@@ -76,30 +115,53 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
       throw new Error('No chart data returned from CoinGecko');
     }
 
-    // Process data points
-    const dataPoints: ChartDataPoint[] = data.prices.map(([timestamp, price], index) => ({
-      timestamp,
-      price,
-      marketCap: data.market_caps?.[index]?.[1] || 0,
-      volume: data.total_volumes?.[index]?.[1] || 0,
-      date: new Date(timestamp).toISOString()
-    }));
+    // Process data points with proper volume handling
+    const dataPoints: ChartDataPoint[] = data.prices.map(([timestamp, price], index) => {
+      // Get corresponding market cap and volume data
+      const marketCap = data.market_caps?.[index]?.[1] || 0;
+      const volume = data.total_volumes?.[index]?.[1] || 0;
+      
+      return {
+        timestamp,
+        price,
+        marketCap,
+        volume,
+        date: new Date(timestamp).toISOString()
+      };
+    });
 
-    // Calculate summary statistics
-    const prices = dataPoints.map(d => d.price).filter(p => p > 0);
-    const volumes = dataPoints.map(d => d.volume).filter(v => v > 0);
+    // Filter out invalid data points
+    const validDataPoints = dataPoints.filter(d => d.price > 0);
     
-    const startPrice = dataPoints[0]?.price || 0;
-    const endPrice = dataPoints[dataPoints.length - 1]?.price || 0;
+    if (validDataPoints.length === 0) {
+      throw new Error('No valid price data found');
+    }
+
+    // Debug logging for data accuracy
+    console.log(`Chart API Debug - Days: ${days}, Total Points: ${validDataPoints.length}`);
+    console.log(`Sample Price Range: ${Math.min(...validDataPoints.map(d => d.price))} to ${Math.max(...validDataPoints.map(d => d.price))}`);
+    console.log(`Sample Volume Range: ${Math.min(...validDataPoints.map(d => d.volume))} to ${Math.max(...validDataPoints.map(d => d.volume))}`);
+
+    // Calculate summary statistics from valid data
+    const prices = validDataPoints.map(d => d.price);
+    const volumes = validDataPoints.map(d => d.volume).filter(v => v > 0);
+    
+    const startPrice = validDataPoints[0]?.price || 0;
+    const endPrice = validDataPoints[validDataPoints.length - 1]?.price || 0;
     const changePercent = startPrice > 0 ? ((endPrice - startPrice) / startPrice) * 100 : 0;
     const changeAmount = endPrice - startPrice;
     
     const highestPrice = Math.max(...prices);
     const lowestPrice = Math.min(...prices);
-    const totalVolume = volumes.reduce((sum, vol) => sum + vol, 0);
-    const avgVolume = volumes.length > 0 ? totalVolume / volumes.length : 0;
+    
+    // Use the calculated total volume from the separate endpoint
+    const avgVolume = totalVolume > 0 ? totalVolume / parseInt(days) : 0;
     const highestVolume = Math.max(...volumes);
     const lowestVolume = Math.min(...volumes);
+
+    // Debug volume calculations
+    console.log(`Volume Stats - Total: ${totalVolume}, Avg: ${avgVolume}, High: ${highestVolume}, Low: ${lowestVolume}`);
+    console.log(`Timeframe: ${days} days, Using calculated total volume from 24H endpoint`);
 
     // Format time range
     const timeRangeMap: Record<string, string> = {
@@ -112,7 +174,7 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
 
     return {
       timeframe: days,
-      dataPoints,
+      dataPoints: validDataPoints,
       summary: {
         startPrice,
         endPrice,
@@ -126,7 +188,7 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
         lowestVolume
       },
       metadata: {
-        totalPoints: dataPoints.length,
+        totalPoints: validDataPoints.length,
         timeRange: timeRangeMap[days] || `${days} days`,
         lastUpdated: new Date().toISOString()
       }
@@ -141,7 +203,7 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const days = searchParams.get('days') || '30';
+    const days = searchParams.get('days') || '1';
     
     const chartData = await fetchBONKChart(days);
     

@@ -22,8 +22,7 @@ import { InteractivePriceChart } from "./interactive-price-chart";
 import { EnhancedMarketsTable } from "./enhanced-markets-table";
 import { SupplyChart } from "./supply-chart";
 import { NewsUpdates } from "./news-updates";
-import { TokenomicsDashboard } from "./tokenomics-dashboard";
-import { HoldersDashboard } from "./holders-dashboard";
+
 import { EnhancedMarketsDashboard } from "./enhanced-markets-dashboard";
 
 // Import Bonk ecosystem ticker
@@ -119,11 +118,7 @@ export function MainContent() {
           {/* Enhanced Markets Dashboard */}
           <EnhancedMarketsDashboard />
           
-          {/* Tokenomics Dashboard */}
-          <TokenomicsDashboard />
-          
-          {/* Holders Dashboard */}
-          <HoldersDashboard />
+
           
           {/* Supply Analysis */}
           <SupplyChart />

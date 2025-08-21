@@ -1,12 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, LineChart, Activity, RefreshCw, DollarSign, TrendingUpIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { 
+  LineChart as RechartsLineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  ComposedChart,
+  Area,
+  AreaChart
+} from 'recharts';
 
 type ChartDataPoint = {
   timestamp: number;
@@ -50,8 +64,9 @@ export function InteractivePriceChart() {
   const [chartData, setChartData] = useState<ChartPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRange, setSelectedRange] = useState("30");
-  const [chartType, setChartType] = useState<"line" | "area" | "candlestick">("line");
+  const [selectedRange, setSelectedRange] = useState("1");
+  const [chartMode, setChartMode] = useState<"price" | "marketCap">("price");
+  const [hoveredPoint, setHoveredPoint] = useState<ChartDataPoint | null>(null);
 
   useEffect(() => {
     fetchChartData(selectedRange);
@@ -83,6 +98,14 @@ export function InteractivePriceChart() {
     return `$${price.toFixed(2)}`;
   };
 
+  const formatMarketCap = (marketCap: number) => {
+    if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(2)}T`;
+    if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(2)}B`;
+    if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(2)}M`;
+    if (marketCap >= 1e3) return `$${(marketCap / 1e3).toFixed(2)}K`;
+    return `$${marketCap.toFixed(2)}`;
+  };
+
   const formatVolume = (volume: number) => {
     if (volume >= 1e9) return `$${(volume / 1e9).toFixed(2)}B`;
     if (volume >= 1e6) return `$${(volume / 1e6).toFixed(2)}M`;
@@ -103,9 +126,64 @@ export function InteractivePriceChart() {
     return change >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />;
   };
 
+  const formatTimestamp = (timestamp: number) => {
+    const date = new Date(timestamp);
+    if (selectedRange === "1") {
+      return date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    } else if (selectedRange === "7") {
+      return date.toLocaleDateString('en-US', { 
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      });
+    } else if (selectedRange === "30") {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short',
+        day: 'numeric'
+      });
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short',
+        year: '2-digit'
+      });
+    }
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-background border border-border rounded-lg p-3 shadow-lg backdrop-blur-sm">
+          <div className="text-sm font-medium text-muted-foreground">
+            {new Date(data.timestamp).toLocaleString()}
+          </div>
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+              <span className="text-sm font-medium">
+                {chartMode === "price" ? "Price" : "Market Cap"}: {
+                  chartMode === "price" ? formatPrice(data.price) : formatMarketCap(data.marketCap)
+                }
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              <span className="text-sm font-medium">Volume: {formatVolume(data.volume)}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (loading) {
     return (
-      <Card className="w-full">
+      <Card className="w-full border-border bg-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <Skeleton className="h-6 w-32" />
@@ -126,7 +204,7 @@ export function InteractivePriceChart() {
 
   if (error) {
     return (
-      <Card className="w-full">
+      <Card className="w-full border-border bg-card">
         <CardHeader>
           <CardTitle className="text-red-500">Chart Error</CardTitle>
           <CardDescription>{error}</CardDescription>
@@ -143,7 +221,7 @@ export function InteractivePriceChart() {
 
   if (!chartData) {
     return (
-      <Card className="w-full">
+      <Card className="w-full border-border bg-card">
         <CardContent className="pt-6">
           <p className="text-center text-muted-foreground">No chart data available</p>
         </CardContent>
@@ -151,252 +229,203 @@ export function InteractivePriceChart() {
     );
   }
 
-  const { summary, metadata } = chartData;
+  const { summary, metadata, dataPoints } = chartData;
+
+  // Debug logging to see what data we're receiving
+  console.log('Chart Component Debug:', {
+    chartMode,
+    summary,
+    dataPointsLength: dataPoints.length,
+    firstDataPoint: dataPoints[0],
+    lastDataPoint: dataPoints[dataPoints.length - 1],
+    marketCapRange: {
+      min: Math.min(...dataPoints.map(d => d.marketCap)),
+      max: Math.max(...dataPoints.map(d => d.marketCap))
+    }
+  });
+
+  // Calculate proper Y-axis ranges for better visualization
+  const priceRange = summary.highestPrice - summary.lowestPrice;
+  const volumeRange = Math.max(...dataPoints.map(d => d.volume)) - Math.min(...dataPoints.map(d => d.volume));
+  
+  const minPrice = summary.lowestPrice - (priceRange * 0.1);
+  const maxPrice = summary.highestPrice + (priceRange * 0.1);
+  const minVolume = Math.min(...dataPoints.map(d => d.volume)) - (volumeRange * 0.1);
+  const maxVolume = Math.max(...dataPoints.map(d => d.volume)) + (volumeRange * 0.1);
 
   return (
-    <Card className="w-full">
-      <CardHeader>
+    <Card className="w-full border-border bg-card shadow-lg">
+      <CardHeader className="border-b border-border">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              BONK Price Chart
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Activity className="w-5 h-5 text-purple-500" />
+              BONK {chartMode === "price" ? "Price" : "Market Cap"} Chart
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-muted-foreground">
               {metadata.timeRange} • {metadata.totalPoints} data points • Last updated: {new Date(metadata.lastUpdated).toLocaleString()}
             </CardDescription>
           </div>
           
-          <div className="flex items-center gap-2">
-            <Select value={chartType} onValueChange={(value: "line" | "area" | "candlestick") => setChartType(value)}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="line">
-                  <div className="flex items-center gap-2">
-                    <LineChart className="w-4 h-4" />
-                    Line
-                  </div>
-                </SelectItem>
-                <SelectItem value="area">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Area
-                  </div>
-                </SelectItem>
-                <SelectItem value="candlestick">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Candles
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={selectedRange} onValueChange={setSelectedRange}>
-              <SelectTrigger className="w-20">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {timeRanges.map((range) => (
-                  <SelectItem key={range.value} value={range.value}>
-                    {range.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-3">
+            {/* Price/Market Cap Toggle */}
+            <ToggleGroup type="single" value={chartMode} onValueChange={(value) => value && setChartMode(value as "price" | "marketCap")}>
+              <ToggleGroupItem value="price" className="px-3 py-2 text-sm bg-background border-border hover:bg-accent">
+                <DollarSign className="w-4 h-4 mr-2 text-purple-500" />
+                Price
+              </ToggleGroupItem>
+              <ToggleGroupItem value="marketCap" className="px-3 py-2 text-sm bg-background border-border hover:bg-accent">
+                <BarChart3 className="w-4 h-4 mr-2 text-blue-500" />
+                Market Cap
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            {/* Time Range Selector */}
+            <ToggleGroup type="single" value={selectedRange} onValueChange={(value) => value && setSelectedRange(value)}>
+              {timeRanges.map((range) => (
+                <ToggleGroupItem 
+                  key={range.value} 
+                  value={range.value} 
+                  className="px-3 py-2 text-sm bg-background border-border hover:bg-accent data-[state=on]:bg-purple-500 data-[state=on]:text-white"
+                >
+                  {range.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </div>
         </div>
       </CardHeader>
-      
-      <CardContent>
-        {/* Real Chart Implementation */}
-        <div className="mb-6">
-          <div className="w-full h-64 bg-muted/10 rounded-lg p-4">
-            {chartData.dataPoints.length > 0 ? (
-              <svg width="100%" height="100%" viewBox="0 0 800 240" className="w-full h-full">
-                {/* Chart background */}
-                <rect width="100%" height="100%" fill="transparent" />
-                
-                {/* Y-axis grid lines */}
-                {Array.from({ length: 5 }).map((_, i) => {
-                  const y = (i * 240) / 4;
-                  return (
-                    <line
-                      key={i}
-                      x1="0"
-                      y1={y}
-                      x2="800"
-                      y2={y}
-                      stroke="#e5e7eb"
-                      strokeWidth="1"
-                      opacity="0.3"
-                    />
-                  );
-                })}
-                
-                {/* X-axis grid lines */}
-                {Array.from({ length: 8 }).map((_, i) => {
-                  const x = (i * 800) / 7;
-                  return (
-                    <line
-                      key={i}
-                      x1={x}
-                      y1="0"
-                      x2={x}
-                      y2="240"
-                      stroke="#e5e7eb"
-                      strokeWidth="1"
-                      opacity="0.3"
-                    />
-                  );
-                })}
-                
-                {/* Price line chart */}
-                <polyline
-                  fill="none"
-                  stroke={summary.changePercent >= 0 ? "#10b981" : "#ef4444"}
-                  strokeWidth="2"
-                  points={chartData.dataPoints.map((point, index) => {
-                    const x = (index * 800) / (chartData.dataPoints.length - 1);
-                    const priceRange = summary.highestPrice - summary.lowestPrice;
-                    const y = 240 - ((point.price - summary.lowestPrice) / priceRange) * 200 - 20;
-                    return `${x},${y}`;
-                  }).join(" ")}
-                />
-                
-                {/* Data points */}
-                {chartData.dataPoints.map((point, index) => {
-                  const x = (index * 800) / (chartData.dataPoints.length - 1);
-                  const priceRange = summary.highestPrice - summary.lowestPrice;
-                  const y = 240 - ((point.price - summary.lowestPrice) / priceRange) * 200 - 20;
-                  return (
-                    <circle
-                      key={index}
-                      cx={x}
-                      cy={y}
-                      r="3"
-                      fill={summary.changePercent >= 0 ? "#10b981" : "#ef4444"}
-                    />
-                  );
-                })}
-                
-                {/* Chart labels */}
-                <text x="10" y="20" fill="#6b7280" fontSize="12" fontWeight="500">
-                  ${summary.highestPrice.toFixed(6)}
-                </text>
-                <text x="10" y="120" fill="#6b7280" fontSize="12" fontWeight="500">
-                  ${((summary.highestPrice + summary.lowestPrice) / 2).toFixed(6)}
-                </text>
-                <text x="10" y="220" fill="#6b7280" fontSize="12" fontWeight="500">
-                  ${summary.lowestPrice.toFixed(6)}
-                </text>
-              </svg>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">📈</div>
-                  <p className="text-muted-foreground">Loading chart data...</p>
-                </div>
-              </div>
-            )}
+
+      <CardContent className="space-y-6 p-6">
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center p-4 rounded-lg bg-muted/30 border border-border">
+            <div className="text-2xl font-bold text-foreground">
+              {chartMode === "price" ? formatPrice(summary.endPrice) : formatMarketCap(dataPoints[dataPoints.length - 1]?.marketCap || 0)}
+            </div>
+            <div className="text-sm text-muted-foreground">Current</div>
+          </div>
+          
+          <div className="text-center p-4 rounded-lg bg-muted/30 border border-border">
+            <div className={`text-2xl font-bold ${getChangeColor(summary.changePercent)}`}>
+              {formatPercentage(summary.changePercent)}
+            </div>
+            <div className="text-sm text-muted-foreground">Change</div>
+          </div>
+          
+          <div className="text-center p-4 rounded-lg bg-muted/30 border border-border">
+            <div className="text-2xl font-bold text-foreground">
+              {chartMode === "price" ? formatPrice(summary.highestPrice) : formatMarketCap(Math.max(...dataPoints.map(d => d.marketCap)))}
+            </div>
+            <div className="text-sm text-muted-foreground">High</div>
+          </div>
+          
+          <div className="text-center p-4 rounded-lg bg-muted/30 border border-border">
+            <div className="text-2xl font-bold text-foreground">
+              {formatVolume(summary.totalVolume)}
+            </div>
+            <div className="text-sm text-muted-foreground">Volume</div>
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground mb-1">Price Change</div>
-              <div className={`text-lg font-semibold flex items-center gap-1 ${getChangeColor(summary.changePercent)}`}>
-                {getChangeIcon(summary.changePercent)}
-                {formatPercentage(summary.changePercent)}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {formatPrice(summary.changeAmount)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground mb-1">Current Price</div>
-              <div className="text-lg font-semibold">{formatPrice(summary.endPrice)}</div>
-              <div className="text-xs text-muted-foreground">
-                Start: {formatPrice(summary.startPrice)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground mb-1">24h High</div>
-              <div className="text-lg font-semibold text-green-500">{formatPrice(summary.highestPrice)}</div>
-              <div className="text-xs text-muted-foreground">
-                Low: {formatPrice(summary.lowestPrice)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground mb-1">Total Volume</div>
-              <div className="text-lg font-semibold">{formatVolume(summary.totalVolume)}</div>
-              <div className="text-xs text-muted-foreground">
-                Avg: {formatVolume(summary.avgVolume)}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Chart */}
+        <div className="h-96 w-full bg-muted/10 rounded-lg p-4 border border-border">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={dataPoints} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <defs>
+                <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.6}/>
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                </linearGradient>
+              </defs>
+              
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+              
+              <XAxis 
+                dataKey="timestamp" 
+                tickFormatter={formatTimestamp}
+                stroke="#6b7280"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: '#9ca3af' }}
+              />
+              
+              <YAxis 
+                yAxisId="left"
+                domain={[minPrice, maxPrice]}
+                stroke="#6b7280"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: '#9ca3af' }}
+                tickFormatter={(value) => 
+                  chartMode === "price" ? formatPrice(value) : formatMarketCap(value)
+                }
+              />
+              
+              <YAxis 
+                yAxisId="right"
+                orientation="right"
+                domain={[minVolume, maxVolume]}
+                stroke="#6b7280"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: '#9ca3af' }}
+                tickFormatter={formatVolume}
+              />
+              
+              <Tooltip content={<CustomTooltip />} />
+              
+              {/* Main Chart Line */}
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey={chartMode === "price" ? "price" : "marketCap"}
+                stroke="#8b5cf6"
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 8, fill: "#8b5cf6", stroke: "#ffffff", strokeWidth: 2 }}
+              />
+              
+              {/* Area Fill */}
+              <Area
+                yAxisId="left"
+                type="monotone"
+                dataKey={chartMode === "price" ? "price" : "marketCap"}
+                stroke="none"
+                fill="url(#priceGradient)"
+                fillOpacity={0.4}
+              />
+              
+              {/* Volume Bars */}
+              <Bar
+                yAxisId="right"
+                dataKey="volume"
+                fill="url(#volumeGradient)"
+                opacity={0.8}
+                radius={[3, 3, 0, 0]}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* Additional Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Volume Analysis</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Highest Volume:</span>
-                  <span className="font-medium">{formatVolume(summary.highestVolume)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Lowest Volume:</span>
-                  <span className="font-medium">{formatVolume(summary.lowestVolume)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Average Volume:</span>
-                  <span className="font-medium">{formatVolume(summary.avgVolume)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Price Range</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Price Range:</span>
-                  <span className="font-medium">
-                    {formatPrice(summary.lowestPrice)} - {formatPrice(summary.highestPrice)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Data Points:</span>
-                  <span className="font-medium">{metadata.totalPoints}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Time Period:</span>
-                  <span className="font-medium">{metadata.timeRange}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Refresh Button */}
+        <div className="flex justify-center">
+          <Button 
+            onClick={() => fetchChartData(selectedRange)} 
+            variant="outline" 
+            size="sm"
+            className="px-6 border-border hover:bg-accent"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh Data
+          </Button>
         </div>
       </CardContent>
     </Card>
