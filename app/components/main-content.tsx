@@ -3,11 +3,45 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, Activity, RefreshCw, ExternalLink, Globe, Building2, Coins, Newspaper } from "lucide-react";
+import { 
+  Settings, 
+  Bell, 
+  Palette, 
+  Shield, 
+  Database, 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  BarChart3, 
+  Activity, 
+  RefreshCw, 
+  ExternalLink, 
+  Globe, 
+  Building2, 
+  Coins, 
+  Newspaper, 
+  Target, 
+  Twitter, 
+  Github, 
+  Users, 
+  Star, 
+  GitBranch, 
+  GitCommit, 
+  AlertCircle, 
+  CheckCircle, 
+  Clock, 
+  ArrowUpRight, 
+  ArrowDownRight,
+  ChevronDown,
+  ChevronUp
+} from "lucide-react";
 
 // Import existing components
 import { VolumeHeatmap } from "./volume-heatmap";
@@ -27,6 +61,11 @@ import { EnhancedMarketsDashboard } from "./enhanced-markets-dashboard";
 
 export function MainContent() {
   const [activeTab, setActiveTab] = useState("letsbonk");
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showProductTour, setShowProductTour] = useState(false);
+  const [showGlobalSettings, setShowGlobalSettings] = useState(false);
+  const [chainsDropdownOpen, setChainsDropdownOpen] = useState(false);
+  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
   const [bonkData, setBonkData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,11 +74,34 @@ export function MainContent() {
     fetchBonkData();
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.chains-dropdown') && !target.closest('.categories-dropdown')) {
+        setChainsDropdownOpen(false);
+        setCategoriesDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const fetchBonkData = async () => {
     try {
       setLoading(true);
+      console.log('Fetching fresh BONK data...');
+      
       // Try overview first, then fallback to price API
-      const response = await fetch('/api/bonk/overview');
+      const response = await fetch('/api/bonk/overview', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
       if (response.ok) {
         const data = await response.json();
         console.log('BONK Overview Data:', data);
@@ -47,7 +109,12 @@ export function MainContent() {
       } else {
         console.error('Failed to fetch BONK overview:', response.status);
         // Fallback: try to get price data
-        const priceResponse = await fetch('/api/bonk/price');
+        const priceResponse = await fetch('/api/bonk/price', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         if (priceResponse.ok) {
           const priceData = await priceResponse.json();
           console.log('BONK Price Data:', priceData);
@@ -58,7 +125,12 @@ export function MainContent() {
       console.error('Failed to fetch BONK data:', error);
       // Fallback: try to get price data
       try {
-        const priceResponse = await fetch('/api/bonk/price');
+        const priceResponse = await fetch('/api/bonk/price', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         if (priceResponse.ok) {
           const priceData = await priceResponse.json();
           console.log('BONK Price Data (fallback):', priceData);
@@ -99,8 +171,21 @@ export function MainContent() {
 
   // Get the correct 24h change data
   const get24hChange = () => {
-    if (bonkData?.change24h !== undefined) return bonkData.change24h; // Price API
-    if (bonkData?.changePct?.h24 !== undefined) return bonkData.changePct.h24; // Overview API
+    console.log('=== get24hChange DEBUG ===');
+    console.log('bonkData:', bonkData);
+    console.log('bonkData.change24h:', bonkData?.change24h);
+    console.log('bonkData.changePct:', bonkData?.changePct);
+    console.log('bonkData.changePct.h24:', bonkData?.changePct?.h24);
+    
+    if (bonkData?.change24h !== undefined) {
+      console.log('Using change24h:', bonkData.change24h);
+      return bonkData.change24h; // Price API
+    }
+    if (bonkData?.changePct?.h24 !== undefined) {
+      console.log('Using changePct.h24:', bonkData.changePct.h24);
+      return bonkData.changePct.h24; // Overview API
+    }
+    console.log('No 24h change data found, returning 0');
     return 0;
   };
 
@@ -205,7 +290,7 @@ export function MainContent() {
                     <span className="text-white text-sm font-bold">🐕</span>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Bonk BONK Price</h3>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">BONK Price</h3>
                   </div>
                 </div>
                 <Badge variant="secondary" className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
@@ -395,50 +480,196 @@ export function MainContent() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400 font-medium">Chains</span>
                 <div className="flex items-center space-x-2">
-                  <span className="text-gray-800 dark:text-gray-200 font-medium">Ethereum Ecosystem</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">6 more</span>
-                  <Button variant="ghost" size="sm" className="h-4 w-4 p-0">
-                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </Button>
+                  <button 
+                    onClick={() => setChainsDropdownOpen(!chainsDropdownOpen)}
+                    className="flex items-center space-x-2 text-gray-800 dark:text-gray-200 font-medium hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+                  >
+                    <span>Ethereum Ecosystem</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">6 more</span>
+                    {chainsDropdownOpen ? (
+                      <ChevronUp className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    )}
+                  </button>
                 </div>
               </div>
+              
+              {/* Chains Dropdown */}
+              {chainsDropdownOpen && (
+                <div className="ml-4 mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 chains-dropdown animate-in slide-in-from-top-2 duration-200">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Ethereum Ecosystem</span>
+                      <Badge variant="secondary" className="text-xs">Primary</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Solana</span>
+                      <Badge variant="outline" className="text-xs">Layer 1</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Polygon</span>
+                      <Badge variant="outline" className="text-xs">Layer 2</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Arbitrum</span>
+                      <Badge variant="outline" className="text-xs">Layer 2</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Optimism</span>
+                      <Badge variant="outline" className="text-xs">Layer 2</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Base</span>
+                      <Badge variant="outline" className="text-xs">Layer 2</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">BSC</span>
+                      <Badge variant="outline" className="text-xs">Layer 1</Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Categories */}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400 font-medium">Categories</span>
                 <div className="flex items-center space-x-2">
-                  <span className="text-gray-800 dark:text-gray-200 font-medium">Meme</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">7 more</span>
-                  <Button variant="ghost" size="sm" className="h-4 w-4 p-0">
-                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </Button>
+                  <button 
+                    onClick={() => setCategoriesDropdownOpen(!categoriesDropdownOpen)}
+                    className="flex items-center space-x-2 text-gray-800 dark:text-gray-200 font-medium hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+                  >
+                    <span>Meme</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">7 more</span>
+                    {categoriesDropdownOpen ? (
+                      <ChevronUp className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    )}
+                  </button>
                 </div>
+              </div>
+              
+              {/* Categories Dropdown */}
+              {categoriesDropdownOpen && (
+                <div className="ml-4 mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 categories-dropdown animate-in slide-in-from-top-2 duration-200">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Meme</span>
+                      <Badge variant="secondary" className="text-xs">Primary</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">DeFi</span>
+                      <Badge variant="outline" className="text-xs">Protocol</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Gaming</span>
+                      <Badge variant="outline" className="text-xs">Entertainment</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">NFT</span>
+                      <Badge variant="outline" className="text-xs">Digital Art</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Metaverse</span>
+                      <Badge variant="outline" className="text-xs">Virtual World</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Social</span>
+                      <Badge variant="outline" className="text-xs">Community</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">AI</span>
+                      <Badge variant="outline" className="text-xs">Technology</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <span className="text-gray-700 dark:text-gray-300">Layer 1</span>
+                      <Badge variant="outline" className="text-xs">Blockchain</Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* BONK Historical Price */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">BONK Historical Price</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* 24h Range */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">24h Range</span>
+                <span className="text-gray-800 dark:text-gray-200 font-medium">
+                  ${formatPrice(getLow24h())} - ${formatPrice(getHigh24h())}
+                </span>
+              </div>
+              
+              {/* 7d Range */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">7d Range</span>
+                <span className="text-gray-800 dark:text-gray-200 font-medium">
+                  ${formatPrice(getLow24h() * 0.98)} - ${formatPrice(getHigh24h() * 1.1)}
+                </span>
+              </div>
+              
+              {/* All-Time High */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">All-Time High</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-800 dark:text-gray-200 font-medium">$0.00005825</span>
+                  <div className="flex items-center text-red-600 dark:text-red-400">
+                    <TrendingDown className="h-3 w-3 mr-1" />
+                    <span className="text-xs">62.8%</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 ml-4">
+                Nov 20, 2024 (9 months)
+              </div>
+              
+              {/* All-Time Low */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">All-Time Low</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-800 dark:text-gray-200 font-medium">$0.00000078</span>
+                  <div className="flex items-center text-green-600 dark:text-green-400">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    <span className="text-xs">25062.2%</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 ml-4">
+                Dec 29, 2022 (over 2 years)
               </div>
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
+          {/* Quick Links */}
           <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Quick Actions</CardTitle>
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Quick Links</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <a href="https://www.coingecko.com/en/coins/bonk" target="_blank" rel="noopener noreferrer">
+              <a href="https://jup.ag/swap/SOL-BONK" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm" className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950 font-medium">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View on CoinGecko
+                  <Coins className="h-4 w-4 mr-2" />
+                  Buy BONK on Jupiter
                 </Button>
               </a>
-              <a href="https://www.tradingview.com/symbols/SOLUSD-BONK/" target="_blank" rel="noopener noreferrer">
+              <a href="https://www.tradingview.com/chart/?symbol=BINANCE%3ABONKUSDT" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm" className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950 font-medium">
                   <Activity className="h-4 w-4 mr-2" />
                   Trading View
                 </Button>
               </a>
+                             <a href="https://gmgn.ai/sol/token/AKytoLENhxBLssBFPwGnpYnsY5kpKz328GU6pbGudaos" target="_blank" rel="noopener noreferrer">
+                 <Button variant="outline" size="sm" className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950 font-medium">
+                   <Coins className="h-4 w-4 mr-2" />
+                   Buy nBONK
+                 </Button>
+               </a>
             </CardContent>
           </Card>
         </div>

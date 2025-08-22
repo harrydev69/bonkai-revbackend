@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export const revalidate = 60; // 1 minute - overview data changes frequently
+export const revalidate = 30; // 30 seconds - ensure very fresh data
 
 type CoinGeckoOverviewResponse = {
   id: string;
@@ -76,12 +76,17 @@ async function fetchBONKOverview(): Promise<OverviewPayload | null> {
     const API_BASE = process.env.COINGECKO_API_BASE || 'https://api.coingecko.com/api/v3';
     const API_KEY = process.env.COINGECKO_API_KEY;
     
+    console.log('Fetching BONK overview from CoinGecko...');
+    console.log('API Base:', API_BASE);
+    console.log('API Key available:', !!API_KEY);
+    
     // Use the comprehensive endpoint for maximum data
     const url = `${API_BASE}/coins/bonk?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=true`;
     
     const headers: Record<string, string> = {
       'Accept': 'application/json',
-      'User-Agent': 'BONKai-Analytics/1.0'
+      'User-Agent': 'BONKai-Analytics/1.0',
+      'Cache-Control': 'no-cache'
     };
     
     if (API_KEY) {
@@ -90,7 +95,8 @@ async function fetchBONKOverview(): Promise<OverviewPayload | null> {
     
     const res = await fetch(url, {
       headers,
-      next: { revalidate: 60 }
+      cache: 'no-store',
+      next: { revalidate: 30 }
     });
     
     if (!res.ok) {
@@ -109,7 +115,17 @@ async function fetchBONKOverview(): Promise<OverviewPayload | null> {
     
     const marketData = bonk.market_data;
     
-    return {
+    // Log the raw data for debugging
+    console.log('Raw CoinGecko data received:');
+    console.log('Current Price:', marketData.current_price?.usd);
+    console.log('24h Change:', marketData.price_change_percentage_24h);
+    console.log('Market Cap:', marketData.market_cap?.usd);
+    console.log('Volume:', marketData.total_volume?.usd);
+    console.log('High 24h:', marketData.high_24h?.usd);
+    console.log('Low 24h:', marketData.low_24h?.usd);
+    console.log('Last Updated:', bonk.last_updated);
+    
+    const result = {
       price: marketData.current_price?.usd || 0,
       changePct: {
         h1: marketData.price_change_percentage_1h_in_currency?.usd || 0,
@@ -136,11 +152,13 @@ async function fetchBONKOverview(): Promise<OverviewPayload | null> {
         changePct: marketData.atl_change_percentage?.usd || 0,
       },
       lastUpdated: bonk.last_updated || '',
-      // Add the missing supply data
       circulatingSupply: marketData.circulating_supply || 0,
       totalSupply: marketData.total_supply || 0,
       maxSupply: marketData.max_supply || 0,
     };
+    
+    console.log('Processed overview data:', result);
+    return result;
     
   } catch (error) {
     console.error('BONK overview fetch error:', error);

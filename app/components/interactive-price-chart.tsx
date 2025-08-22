@@ -165,23 +165,8 @@ export function InteractivePriceChart() {
       return [];
     }
     
-    console.log('=== CHART DATA DEBUG ===');
-    console.log('Raw chartData:', chartData);
-    console.log('chartData.dataPoints:', chartData.dataPoints);
-    console.log('First point:', chartData.dataPoints[0]);
-    console.log('Last point:', chartData.dataPoints[chartData.dataPoints.length - 1]);
-    
     // Sort data points by timestamp to ensure proper chronological order
     const sortedData = [...chartData.dataPoints].sort((a, b) => a.timestamp - b.timestamp);
-    
-    console.log('Sorted data points:', sortedData);
-    console.log('Price range:', {
-      min: Math.min(...sortedData.map(d => d.price)),
-      max: Math.max(...sortedData.map(d => d.price)),
-      first: sortedData[0]?.price,
-      last: sortedData[sortedData.length - 1]?.price,
-      range: Math.max(...sortedData.map(d => d.price)) - Math.min(...sortedData.map(d => d.price))
-    });
     
     // Filter out any invalid data points
     const validData = sortedData.filter(point => 
@@ -191,18 +176,12 @@ export function InteractivePriceChart() {
       !isNaN(point.timestamp)
     );
     
-    console.log('Valid data points:', validData.length, 'out of', sortedData.length);
-    
     const processed = validData.map(point => ({
       ...point,
       date: formatChartDate(point.date),
       // Ensure price is properly formatted for display
       displayPrice: formatPrice(point.price)
     }));
-    
-    console.log('Processed dataPoints:', processed);
-    console.log('First processed point:', processed[0]);
-    console.log('Last processed point:', processed[processed.length - 1]);
     
     return processed;
   }, [chartData]);
@@ -297,13 +276,13 @@ export function InteractivePriceChart() {
               type="single" 
               value={selectedRange} 
               onValueChange={(value) => value && setSelectedRange(value)}
-              className="bg-gray-50 dark:bg-gray-900"
+              className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-1"
             >
                 {timeRanges.map((range) => (
                 <ToggleGroupItem 
                   key={range.value} 
                   value={range.value} 
-                  className="data-[state=on]:bg-orange-500 data-[state=on]:text-white dark:data-[state=on]:bg-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900"
+                  className="px-3 py-2 rounded-md data-[state=on]:bg-orange-500 data-[state=on]:text-white dark:data-[state=on]:bg-orange-600 data-[state=off]:bg-transparent data-[state=off]:text-gray-700 dark:data-[state=off]:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
                 >
                     {range.label}
                 </ToggleGroupItem>
@@ -311,23 +290,23 @@ export function InteractivePriceChart() {
             </ToggleGroup>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <ToggleGroup 
               type="single" 
               value={chartMode} 
               onValueChange={(value) => value && setChartMode(value as "price" | "marketCap")}
-              className="bg-gray-50 dark:bg-gray-900"
+              className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-1"
             >
               <ToggleGroupItem 
                 value="price" 
-                className="data-[state=on]:bg-orange-500 data-[state=on]:text-white dark:data-[state=on]:bg-orange-600 data-[state=off]:bg-white data-[state=off]:text-gray-700 dark:data-[state=off]:bg-gray-800 dark:data-[state=off]:text-gray-300"
+                className="px-4 py-2 rounded-md data-[state=on]:bg-orange-500 data-[state=on]:text-white dark:data-[state=on]:bg-orange-600 data-[state=off]:bg-transparent data-[state=off]:text-gray-700 dark:data-[state=off]:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
               >
                 <DollarSign className="h-4 w-4 mr-2" />
                 Price
               </ToggleGroupItem>
               <ToggleGroupItem 
                 value="marketCap" 
-                className="data-[state=on]:bg-blue-600 data-[state=on]:text-white dark:data-[state=on]:bg-blue-700 data-[state=off]:bg-white data-[state=off]:text-gray-700 dark:data-[state=off]:bg-gray-800 dark:data-[state=off]:text-gray-300"
+                className="px-4 py-2 rounded-md data-[state=on]:bg-blue-600 data-[state=on]:text-white dark:data-[state=on]:bg-blue-700 data-[state=off]:bg-transparent data-[state=off]:text-gray-700 dark:data-[state=off]:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Market Cap
@@ -338,20 +317,8 @@ export function InteractivePriceChart() {
       
         {/* Chart */}
         <div className="h-96 w-full">
-          <div className="flex items-center justify-center mb-2">
-            <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-              chartMode === "price" 
-                ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" 
-                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-            }`}>
-              {chartMode === "price" ? "Price Chart" : "Market Cap Chart"}
-            </div>
-          </div>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={dataPoints}>
-              {console.log('Chart rendering with dataPoints:', dataPoints)}
-              {console.log('First chart data point:', dataPoints[0])}
-              {console.log('Last chart data point:', dataPoints[dataPoints.length - 1])}
               <defs>
                 <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#f97316" stopOpacity={0.8}/>

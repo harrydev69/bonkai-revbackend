@@ -37,12 +37,14 @@ export type ChartPayload = {
   };
 };
 
-export const revalidate = 300; // 5 minutes - chart data changes frequently
+export const revalidate = 60; // 1 minute - chart data changes frequently
 
 async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
   try {
     const API_BASE = process.env.COINGECKO_API_BASE || 'https://api.coingecko.com/api/v3';
     const API_KEY = process.env.COINGECKO_API_KEY;
+    
+    console.log(`Fetching BONK chart data for ${days} days...`);
     
     // Validate days parameter
     const validDays = ['1', '7', '30', '90', '365'];
@@ -57,13 +59,17 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'BONKai-Analytics/1.0',
+          'Cache-Control': 'no-cache',
           ...(API_KEY && { 'x-cg-pro-api-key': API_KEY })
-        }
+        },
+        cache: 'no-store'
       });
       
       if (currentDataResponse.ok) {
         currentMarketData = await currentDataResponse.json();
         console.log('Current market data fetched successfully for consistency check');
+        console.log('Current Price:', currentMarketData.market_data?.current_price?.usd);
+        console.log('24h Change:', currentMarketData.market_data?.price_change_percentage_24h);
       }
     } catch (error) {
       console.log('Could not fetch current market data, proceeding with chart data only');
@@ -73,7 +79,8 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
     const url = `${API_BASE}/coins/bonk/market_chart?vs_currency=usd&days=${days}`;
     const headers: Record<string, string> = {
       'Accept': 'application/json',
-      'User-Agent': 'BONKai-Analytics/1.0'
+      'User-Agent': 'BONKai-Analytics/1.0',
+      'Cache-Control': 'no-cache'
     };
     
     if (API_KEY) {
@@ -82,7 +89,8 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
 
     const res = await fetch(url, { 
       headers,
-      next: { revalidate: 300 }
+      cache: 'no-store',
+      next: { revalidate: 60 }
     });
 
     if (!res.ok) {
@@ -96,72 +104,65 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
       throw new Error('No chart data returned from CoinGecko');
     }
 
-    // Process data points with proper volume handling
-    const dataPoints: ChartDataPoint[] = data.prices.map(([timestamp, price], index) => {
-      // Get corresponding market cap and volume data
-      const marketCap = data.market_caps?.[index]?.[1] || 0;
-      const volume = data.total_volumes?.[index]?.[1] || 0;
+    console.log(`Chart data received: ${data.prices.length} price points`);
+    console.log('First price point:', data.prices[0]);
+    console.log('Last price point:', data.prices[data.prices.length - 1]);
+
+    // Transform the data to match CoinGecko's exact format
+    // CoinGecko returns: [timestamp, price] - NOT [price, timestamp]
+    const transformedData: ChartDataPoint[] = data.prices.map(([timestamp, price], index) => {
+      const date = new Date(timestamp);
+      
+      console.log(`Processing point ${index}: timestamp=${timestamp}, price=${price}, date=${date.toISOString()}`);
       
       return {
-        timestamp,
-        price,
-        marketCap,
-        volume,
-        date: new Date(timestamp).toISOString()
+        timestamp: timestamp,
+        date: date.toISOString(),
+        price: price,
+        marketCap: data.market_caps?.[index]?.[1] || 0,
+        volume: data.total_volumes?.[index]?.[1] || 0
       };
     });
 
-    // Filter out invalid data points
-    const validDataPoints = dataPoints.filter(d => d.price > 0);
-    
-    if (validDataPoints.length === 0) {
-      throw new Error('No valid price data found');
-    }
-
-    // Calculate summary statistics from valid data
-    const prices = validDataPoints.map(d => d.price);
-    const volumes = validDataPoints.map(d => d.volume).filter(v => v > 0);
-    
-    const startPrice = validDataPoints[0]?.price || 0;
-    const endPrice = validDataPoints[validDataPoints.length - 1]?.price || 0;
-    const changePercent = startPrice > 0 ? ((endPrice - startPrice) / startPrice) * 100 : 0;
+    // Calculate proper summary statistics
+    const startPrice = transformedData[0]?.price || 0;
+    const endPrice = transformedData[transformedData.length - 1]?.price || 0;
     const changeAmount = endPrice - startPrice;
+    const changePercent = startPrice > 0 ? ((changeAmount / startPrice) * 100) : 0;
     
+    // Find highest and lowest prices
+    const prices = transformedData.map(d => d.price).filter(p => p > 0);
     const highestPrice = Math.max(...prices);
     const lowestPrice = Math.min(...prices);
     
-    // Use current market data for volume if available, otherwise calculate from chart data
-    let totalVolume = 0;
-    let currentMarketCap = 0;
-    
-    if (currentMarketData?.market_data) {
-      const current24hVolume = currentMarketData.market_data.total_volume?.usd || 0;
-      currentMarketCap = currentMarketData.market_data.market_cap?.usd || 0;
-      
-      // Calculate total volume based on timeframe for consistency
-      if (days === '1') {
-        totalVolume = current24hVolume;
-      } else if (days === '7') {
-        totalVolume = current24hVolume * 7;
-      } else if (days === '30') {
-        totalVolume = current24hVolume * 30;
-      } else if (days === '90') {
-        totalVolume = current24hVolume * 90;
-      } else if (days === '365') {
-        totalVolume = current24hVolume * 365;
-      }
-      
-      console.log(`Using current market data - 24h Volume: ${current24hVolume}, Market Cap: ${currentMarketCap}`);
-    } else {
-      // Fallback to chart data volume calculation
-      totalVolume = volumes.reduce((sum, vol) => sum + vol, 0);
-      currentMarketCap = validDataPoints[validDataPoints.length - 1]?.marketCap || 0;
-      console.log('Using chart data volume calculation as fallback');
-    }
-    
-    const avgVolume = totalVolume > 0 ? totalVolume / parseInt(days) : 0;
+    // Calculate volume statistics
+    const volumes = transformedData.map(d => d.volume).filter(v => v > 0);
+    const totalVolume = volumes.reduce((sum, vol) => sum + vol, 0);
+    const avgVolume = volumes.length > 0 ? totalVolume / volumes.length : 0;
     const highestVolume = Math.max(...volumes);
     const lowestVolume = Math.min(...volumes);
+
+    const payload: ChartPayload = {
+      timeframe: days,
+      dataPoints: transformedData,
+      summary: {
+        startPrice,
+        endPrice,
+        changeAmount,
+        changePercent,
+        highestPrice,
+        lowestPrice,
+        totalVolume,
+        avgVolume,
+        highestVolume,
+        lowestVolume
+      },
+      metadata: {
+        totalPoints: transformedData.length,
+        timeRange: `${days} days`,
+        lastUpdated: new Date().toISOString()
+      }
+    };
 
     // Data validation and consistency checks
     if (currentMarketData?.market_data) {
@@ -176,6 +177,12 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
       console.log(`  Chart High: ${highestPrice}, Overview High: ${overviewHigh}`);
       console.log(`  Chart Low: ${lowestPrice}, Overview Low: ${overviewLow}`);
       
+      // Validate price consistency - if there's a significant difference, log warning
+      if (overviewPrice && Math.abs(endPrice - overviewPrice) > (overviewPrice * 0.01)) { // 1% tolerance
+        console.warn(`Price discrepancy detected! Chart end price: ${endPrice}, Overview price: ${overviewPrice}`);
+        console.warn('This might indicate stale chart data or API inconsistencies');
+      }
+      
       // Use overview data for 24h timeframe to ensure consistency
       if (days === '1' && overviewPrice && overviewHigh && overviewLow) {
         console.log('Using overview data for 24h timeframe consistency');
@@ -183,36 +190,7 @@ async function fetchBONKChart(days: string): Promise<ChartPayload | null> {
       }
     }
 
-    // Format time range
-    const timeRangeMap: Record<string, string> = {
-      '1': '24 Hours',
-      '7': '7 Days',
-      '30': '30 Days', 
-      '90': '90 Days',
-      '365': '1 Year'
-    };
-
-    return {
-      timeframe: days,
-      dataPoints: validDataPoints,
-      summary: {
-        startPrice,
-        endPrice,
-        changePercent,
-        changeAmount,
-        highestPrice,
-        lowestPrice,
-        totalVolume,
-        avgVolume,
-        highestVolume,
-        lowestVolume
-      },
-      metadata: {
-        totalPoints: validDataPoints.length,
-        timeRange: timeRangeMap[days] || `${days} days`,
-        lastUpdated: new Date().toISOString()
-      }
-    };
+    return payload;
 
   } catch (error) {
     console.error('BONK chart API error:', error);
