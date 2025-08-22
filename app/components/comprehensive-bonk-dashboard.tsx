@@ -5,8 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InteractivePriceChart } from "./interactive-price-chart";
 import { BONKNewsFeed } from "./bonk-news-feed";
-import { StickyBonkWidget } from "./sticky-bonk-widget";
-import { NewsSentimentWidget } from "./news-sentiment-widget";
 import { 
   TrendingUp, 
   ArrowUpRight, 
