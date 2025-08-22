@@ -146,8 +146,26 @@ export function MainContent() {
 
   // Helper function to safely format numbers
   const formatNumber = (value: number | undefined, divisor: number, suffix: string) => {
-    if (!value || isNaN(value)) return '0.00' + suffix;
-    return (value / divisor).toFixed(2) + suffix;
+    if (!value || isNaN(value)) return '0' + suffix;
+    return Math.round(value / divisor) + suffix;
+  };
+
+  // Helper function to safely format market cap (no decimals)
+  const formatMarketCap = (value: number | undefined) => {
+    if (!value || isNaN(value)) return '0B';
+    return Math.round(value / 1e9) + 'B';
+  };
+
+  // Helper function to safely format volume (no decimals)
+  const formatVolume = (value: number | undefined) => {
+    if (!value || isNaN(value)) return '0M';
+    return Math.round(value / 1e6) + 'M';
+  };
+
+  // Helper function to safely format supply (no decimals)
+  const formatSupply = (value: number | undefined) => {
+    if (!value || isNaN(value)) return '0T';
+    return Math.round(value / 1e12) + 'T';
   };
 
   // Helper function to safely format price
@@ -326,41 +344,111 @@ export function MainContent() {
                 </div>
               </div>
 
-              {/* Market Statistics List */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Market Cap</span>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-gray-900 dark:text-white">${formatNumber(getMarketCap(), 1e9, 'B')}</span>
-                    <TrendingDown className="h-3 w-3 text-gray-400" />
-                  </div>
-                </div>
+               {/* Market Statistics List */}
+               <div className="space-y-3">
+                 <div className="flex items-center justify-between text-sm">
+                   <div className="flex items-center space-x-2">
+                     <span className="text-gray-600 dark:text-gray-400">Market Cap</span>
+                     <div className="group relative">
+                       <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                       </svg>
+                       <div className="absolute top-full left-0 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px] shadow-lg">
+                         <div className="font-medium mb-1">Market Cap = Current Price × Circulating Supply</div>
+                         <div className="leading-relaxed">Refers to the total market value of a cryptocurrency's circulating supply.</div>
+                         <div className="absolute bottom-full left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                       </div>
+                     </div>
+                   </div>
+                   <div className="flex items-center space-x-2">
+                     <span className="font-medium text-gray-900 dark:text-white">${getMarketCap()?.toLocaleString() || '0'}</span>
+                     <TrendingDown className="h-3 w-3 text-gray-400" />
+                   </div>
+                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Fully Diluted Valuation</span>
-                  <span className="font-medium text-gray-900 dark:text-white">${formatNumber(getFullyDilutedValuation(), 1e9, 'B')}</span>
-                </div>
+                 <div className="flex items-center justify-between text-sm">
+                   <div className="flex items-center space-x-2">
+                     <span className="text-gray-600 dark:text-gray-400">Fully Diluted Valuation</span>
+                     <div className="group relative">
+                       <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                       </svg>
+                       <div className="absolute top-full left-0 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px] shadow-lg">
+                         <div className="font-medium mb-1">FDV = Current Price × Total Supply</div>
+                         <div className="leading-relaxed">Theoretical market cap if all supply circulated</div>
+                         <div className="absolute bottom-full left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                       </div>
+                     </div>
+                   </div>
+                   <span className="font-medium text-gray-900 dark:text-white">${getFullyDilutedValuation()?.toLocaleString() || '0'}</span>
+                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">24 Hour Trading Vol</span>
-                  <span className="font-medium text-gray-900 dark:text-white">${formatNumber(getVolume24h(), 1e6, 'M')}</span>
-                </div>
+                 <div className="flex items-center justify-between text-sm">
+                   <div className="flex items-center space-x-2">
+                     <span className="text-gray-600 dark:text-gray-400">24 Hour Trading Vol</span>
+                     <div className="group relative">
+                       <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                       </svg>
+                       <div className="absolute top-full left-0 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px] shadow-lg">
+                         <div className="leading-relaxed">24h trading volume across all platforms</div>
+                         <div className="absolute bottom-full left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                       </div>
+                     </div>
+                   </div>
+                   <span className="font-medium text-gray-900 dark:text-white">${getVolume24h()?.toLocaleString() || '0'}</span>
+                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Circulating Supply</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatNumber(getCirculatingSupply(), 1e12, 'T')}</span>
-                </div>
+                 <div className="flex items-center justify-between text-sm">
+                   <div className="flex items-center space-x-2">
+                     <span className="text-gray-600 dark:text-gray-400">Circulating Supply</span>
+                     <div className="group relative">
+                       <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                       </svg>
+                       <div className="absolute top-full left-0 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px] shadow-lg">
+                         <div className="leading-relaxed">Coins available for trading</div>
+                         <div className="absolute bottom-full left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                       </div>
+                     </div>
+                   </div>
+                   <span className="font-medium text-gray-900 dark:text-white">{getCirculatingSupply()?.toLocaleString() || '0'}</span>
+                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Total Supply</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatNumber(getTotalSupply(), 1e12, 'T')}</span>
-                </div>
+                 <div className="flex items-center justify-between text-sm">
+                   <div className="flex items-center space-x-2">
+                     <span className="text-gray-600 dark:text-gray-400">Total Supply</span>
+                     <div className="group relative">
+                       <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                       </svg>
+                       <div className="absolute top-full left-0 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px] shadow-lg">
+                         <div className="font-medium mb-1">Total Supply = Onchain supply - burned tokens</div>
+                         <div className="leading-relaxed">All coins created minus burned</div>
+                         <div className="absolute bottom-full left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                       </div>
+                     </div>
+                   </div>
+                   <span className="font-medium text-gray-900 dark:text-white">{getTotalSupply()?.toLocaleString() || '0'}</span>
+                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Max Supply</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatNumber(getMaxSupply(), 1e12, 'T')}</span>
-                </div>
-              </div>
+                 <div className="flex items-center justify-between text-sm">
+                   <div className="flex items-center space-x-2">
+                     <span className="text-gray-600 dark:text-gray-400">Max Supply</span>
+                     <div className="group relative">
+                       <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                       </svg>
+                       <div className="absolute top-full left-0 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px] shadow-lg">
+                         <div className="font-medium mb-1">Max Supply = Theoretical maximum as coded</div>
+                         <div className="leading-relaxed">Maximum coins that can ever exist</div>
+                         <div className="absolute bottom-full left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                       </div>
+                     </div>
+                   </div>
+                   <span className="font-medium text-gray-900 dark:text-white">{getMaxSupply()?.toLocaleString() || '0'}</span>
+                 </div>
+               </div>
             </CardContent>
           </Card>
 

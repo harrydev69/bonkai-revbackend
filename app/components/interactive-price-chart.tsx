@@ -248,13 +248,7 @@ export function InteractivePriceChart() {
             <span>BONK Price Chart</span>
           </CardTitle>
           <CardDescription className="text-gray-600 dark:text-gray-400">
-            {metadata.timeRange} • {metadata.totalPoints} data points • Last updated: {new Date(metadata.lastUpdated).toLocaleString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            })}
+            BONK Price Chart
           </CardDescription>
         </div>
         <Button 
