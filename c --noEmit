@@ -1,0 +1,5 @@
+[33m5d2c3db[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/lunarcrush-and-ui[m[33m, [m[1;31morigin/feature/lunarcrush-and-ui[m[33m)[m Add BONK news API endpoint and news feed component, update dashboard components
+[33m085ed30[m Update market data display to show full precise values like CoinGecko and fix tooltip positioning
+[33md8ad202[m feat: Enhance BONK dashboard with interactive FAQ section and improved layout - Add comprehensive About BONK FAQ with 8 expandable sections - Remove redundant dashboard header for cleaner design - Fix chart data mapping and formatting issues - Improve price performance table layout - Clean up UI elements and remove debug information
+[33m64f44ef[m Fix chart Y-axis scaling and X-axis density to match CoinGecko style - Use dynamic price range (dataMin/dataMax) instead of fixed wide range - Reduce X-axis labels to every 3 hours for cleaner appearance - Add proper data validation and sorting
+[33m89be446[m Update dashboard components: comprehensive-bonk-dashboard, interactive-price-chart, and main-content

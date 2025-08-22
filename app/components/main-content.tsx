@@ -58,6 +58,8 @@ import { SupplyChart } from "./supply-chart";
 import { NewsUpdates } from "./news-updates";
 
 import { EnhancedMarketsDashboard } from "./enhanced-markets-dashboard";
+import { BONKNewsFeed } from "./bonk-news-feed";
+import { HoldersDashboard } from "./holders-dashboard";
 
 export function MainContent() {
   const [activeTab, setActiveTab] = useState("letsbonk");
@@ -760,12 +762,14 @@ export function MainContent() {
                </a>
             </CardContent>
           </Card>
+
+
         </div>
 
         {/* Center Column - Main Content */}
         <div className="lg:col-span-9 space-y-4 md:space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-orange-50 dark:bg-orange-950">
+            <TabsList className="grid w-full grid-cols-5 bg-orange-50 dark:bg-orange-950">
               <TabsTrigger value="letsbonk" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">
                 <Globe className="h-4 w-4 mr-2" />
                 Ecosystem
@@ -781,6 +785,10 @@ export function MainContent() {
               <TabsTrigger value="news" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">
                 <Newspaper className="h-4 w-4 mr-2" />
                 News
+              </TabsTrigger>
+              <TabsTrigger value="holders" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">
+                <Users className="h-4 w-4 mr-2" />
+                Holders
               </TabsTrigger>
             </TabsList>
 
@@ -804,6 +812,10 @@ export function MainContent() {
 
             <TabsContent value="news" className="space-y-4">
               <NewsUpdates />
+            </TabsContent>
+            
+            <TabsContent value="holders" className="space-y-4">
+              <HoldersDashboard />
             </TabsContent>
           </Tabs>
         </div>

@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering since this route fetches live data
+export const dynamic = 'force-dynamic';
+
 export type CoinGeckoStatusResponse = {
   status_updates: Array<{
     description: string;

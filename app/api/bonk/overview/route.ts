@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering since this route fetches live data with no-store
+export const dynamic = 'force-dynamic';
+
 export const revalidate = 30; // 30 seconds - ensure very fresh data
 
 type CoinGeckoOverviewResponse = {

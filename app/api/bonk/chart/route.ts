@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering since this route uses request.url and fetches live data
+export const dynamic = 'force-dynamic';
+
 // Enhanced types for better chart data
 export type CoinGeckoChartResponse = {
   prices: [number, number][];

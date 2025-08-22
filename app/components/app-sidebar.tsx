@@ -34,6 +34,7 @@ import {
   ChevronRight,
   ShoppingCart,
   Globe,
+  Users,
 } from "lucide-react";
 import { useWallet } from "./wallet-provider";
 

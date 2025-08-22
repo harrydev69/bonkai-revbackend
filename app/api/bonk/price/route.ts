@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-export const runtime = 'edge';
+// export const runtime = 'edge'; // Commented out to fix compatibility issues
 
 type Out = {
   symbol: "BONK";
