@@ -59,6 +59,7 @@ import { NewsUpdates } from "./news-updates";
 
 import { EnhancedMarketsDashboard } from "./enhanced-markets-dashboard";
 import { BONKNewsFeed } from "./bonk-news-feed";
+import { HoldersDashboard } from "./holders-dashboard";
 
 export function MainContent() {
   const [activeTab, setActiveTab] = useState("letsbonk");
@@ -814,9 +815,7 @@ export function MainContent() {
             </TabsContent>
             
             <TabsContent value="holders" className="space-y-4">
-              <div className="text-center py-8">
-                <p className="text-gray-600">Holders dashboard coming soon...</p>
-              </div>
+              <HoldersDashboard />
             </TabsContent>
           </Tabs>
         </div>
