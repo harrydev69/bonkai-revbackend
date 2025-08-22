@@ -77,15 +77,22 @@ export function InteractivePriceChart() {
       setLoading(true);
       setError(null);
       
+      console.log(`Fetching chart data for ${days} days...`);
       const response = await fetch(`/api/bonk/chart?days=${days}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch chart data: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('Chart data received:', data);
+      console.log('Data points:', data.dataPoints);
+      console.log('First data point:', data.dataPoints?.[0]);
+      console.log('Last data point:', data.dataPoints?.[data.dataPoints?.length - 1]);
+      
       setChartData(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch chart data');
+      console.error('Chart fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -108,37 +115,115 @@ export function InteractivePriceChart() {
   const formatPercentage = (pct: number) => {
     const isPositive = pct >= 0;
     return (
-      <span className={`inline-flex items-center space-x-1 ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+      <span className={`inline-flex items-center space-x-1 text-lg font-semibold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
         {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
         <span>{Math.abs(pct).toFixed(2)}%</span>
       </span>
     );
   };
 
-  // Format date for X-axis display
-  const formatChartDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 1) {
-      return date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      });
-    } else if (diffDays <= 7) {
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      });
-    } else {
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      });
+  const formatChartDate = (date: string | number) => {
+    if (typeof date === 'string') {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return 'Invalid Date';
+      
+      // Format based on selectedRange
+      if (selectedRange === '1') {
+        return d.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        });
+      } else if (selectedRange === '7') {
+        return d.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        });
+      } else {
+        return d.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        });
+      }
     }
+    return 'Invalid Date';
+  };
+
+  // Process chart data for proper display
+  const dataPoints = useMemo(() => {
+    if (!chartData?.dataPoints) {
+      console.log('No dataPoints found in chartData, checking alternative structure...');
+      console.log('chartData keys:', Object.keys(chartData || {}));
+      
+      // Try alternative data structure - check if it's a different API response format
+      if (chartData && typeof chartData === 'object' && 'data' in chartData) {
+        console.log('Found alternative data structure, using that instead');
+        return (chartData as any).data || [];
+      }
+      
+      console.log('No valid chart data structure found');
+      return [];
+    }
+    
+    console.log('=== CHART DATA DEBUG ===');
+    console.log('Raw chartData:', chartData);
+    console.log('chartData.dataPoints:', chartData.dataPoints);
+    console.log('First point:', chartData.dataPoints[0]);
+    console.log('Last point:', chartData.dataPoints[chartData.dataPoints.length - 1]);
+    
+    // Sort data points by timestamp to ensure proper chronological order
+    const sortedData = [...chartData.dataPoints].sort((a, b) => a.timestamp - b.timestamp);
+    
+    console.log('Sorted data points:', sortedData);
+    console.log('Price range:', {
+      min: Math.min(...sortedData.map(d => d.price)),
+      max: Math.max(...sortedData.map(d => d.price)),
+      first: sortedData[0]?.price,
+      last: sortedData[sortedData.length - 1]?.price,
+      range: Math.max(...sortedData.map(d => d.price)) - Math.min(...sortedData.map(d => d.price))
+    });
+    
+    // Filter out any invalid data points
+    const validData = sortedData.filter(point => 
+      point.price > 0 && 
+      point.timestamp > 0 && 
+      !isNaN(point.price) && 
+      !isNaN(point.timestamp)
+    );
+    
+    console.log('Valid data points:', validData.length, 'out of', sortedData.length);
+    
+    const processed = validData.map(point => ({
+      ...point,
+      date: formatChartDate(point.date),
+      // Ensure price is properly formatted for display
+      displayPrice: formatPrice(point.price)
+    }));
+    
+    console.log('Processed dataPoints:', processed);
+    console.log('First processed point:', processed[0]);
+    console.log('Last processed point:', processed[processed.length - 1]);
+    
+    return processed;
+  }, [chartData]);
+
+  const summary = chartData?.summary || {
+    startPrice: 0,
+    endPrice: 0,
+    changePercent: 0,
+    changeAmount: 0,
+    highestPrice: 0,
+    lowestPrice: 0,
+    totalVolume: 0,
+    avgVolume: 0,
+    highestVolume: 0,
+    lowestVolume: 0
+  };
+
+  const metadata = chartData?.metadata || {
+    totalPoints: 0,
+    timeRange: '',
+    lastUpdated: ''
   };
 
   if (loading) {
@@ -174,8 +259,6 @@ export function InteractivePriceChart() {
       </div>
     );
   }
-
-  const { dataPoints, summary, metadata } = chartData;
 
   return (
     <div className="space-y-6">
@@ -266,6 +349,9 @@ export function InteractivePriceChart() {
           </div>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={dataPoints}>
+              {console.log('Chart rendering with dataPoints:', dataPoints)}
+              {console.log('First chart data point:', dataPoints[0])}
+              {console.log('Last chart data point:', dataPoints[dataPoints.length - 1])}
               <defs>
                 <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#f97316" stopOpacity={0.8}/>
@@ -277,24 +363,58 @@ export function InteractivePriceChart() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.3} />
-              <XAxis 
-                dataKey="date" 
-                stroke="#6b7280"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={formatChartDate}
-              />
               <YAxis 
                 stroke="#6b7280"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
+                domain={['dataMin - dataMin * 0.001', 'dataMax + dataMax * 0.001']}
                 tickFormatter={(value) => {
                   if (chartMode === "price") {
-                    return formatPrice(value);
+                    // Use tight, dynamic range like CoinGecko - show actual price movement
+                    return `$${value.toFixed(8)}`;
                   }
                   return `$${formatNumber(value)}`;
+                }}
+              />
+              <XAxis 
+                dataKey="timestamp" 
+                stroke="#6b7280"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                interval="preserveStartEnd"
+                tickFormatter={(timestamp) => {
+                  // Convert timestamp to proper date format
+                  const date = new Date(timestamp);
+                  if (isNaN(date.getTime())) {
+                    console.error('Invalid timestamp:', timestamp);
+                    return 'Invalid Date';
+                  }
+                  
+                  // Format like CoinGecko - every 3 hours for cleaner appearance
+                  if (selectedRange === '1') {
+                    // For 24H, show every 3 hours like CoinGecko
+                    const hour = date.getHours();
+                    if (hour % 3 === 0) {
+                      return date.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: false 
+                      });
+                    }
+                    return ''; // Hide other labels
+                  } else if (selectedRange === '7') {
+                    return date.toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    });
+                  } else {
+                    return date.toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    });
+                  }
                 }}
               />
               <Tooltip
@@ -311,7 +431,27 @@ export function InteractivePriceChart() {
                   }
                   return [`$${formatNumber(value)}`, "Market Cap"];
                 }}
-                labelFormatter={(label) => `Date: ${formatChartDate(label)}`}
+                labelFormatter={(timestamp) => {
+                  // Convert timestamp to proper date format for tooltip
+                  const date = new Date(timestamp);
+                  if (isNaN(date.getTime())) {
+                    console.error('Invalid timestamp in tooltip:', timestamp);
+                    return 'Date: Invalid Date';
+                  }
+                  
+                  // Format like CoinGecko: "Aug 21, 2025, 12:57:28 GMT+8"
+                  const formattedDate = date.toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  });
+                  
+                  return `Date: ${formattedDate}`;
+                }}
               />
               <Area
                 type="monotone"
