@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InteractivePriceChart } from "./interactive-price-chart";
+import { BONKNewsFeed } from "./bonk-news-feed";
 import { 
   TrendingUp, 
   ArrowUpRight, 
@@ -269,6 +270,9 @@ export function ComprehensiveBONKDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* BONK News Feed - Recently Happened to Bonk */}
+      <BONKNewsFeed />
 
       {/* About BONK - FAQ Style */}
       <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">

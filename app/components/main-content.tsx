@@ -58,6 +58,7 @@ import { SupplyChart } from "./supply-chart";
 import { NewsUpdates } from "./news-updates";
 
 import { EnhancedMarketsDashboard } from "./enhanced-markets-dashboard";
+import { BONKNewsFeed } from "./bonk-news-feed";
 
 export function MainContent() {
   const [activeTab, setActiveTab] = useState("letsbonk");
@@ -760,6 +761,8 @@ export function MainContent() {
                </a>
             </CardContent>
           </Card>
+
+
         </div>
 
         {/* Center Column - Main Content */}
