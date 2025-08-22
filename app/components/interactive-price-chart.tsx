@@ -147,72 +147,66 @@ export function InteractivePriceChart() {
 
   if (error) {
     return (
-      <Card className="border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-950">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
-              <TrendingDown className="h-5 w-5" />
-              <span>{error}</span>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => fetchChartData(selectedRange)}
-              className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-950"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
+      <div className="border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-950 rounded-lg p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+            <TrendingDown className="h-5 w-5" />
+            <span>{error}</span>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => fetchChartData(selectedRange)}
+            className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-950"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
             Retry
           </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   if (!chartData) {
     return (
-      <Card className="border-orange-200 dark:border-orange-700">
-        <CardContent className="pt-6">
-          <div className="text-center text-gray-500 dark:text-gray-400">No chart data available</div>
-        </CardContent>
-      </Card>
+      <div className="border-orange-200 dark:border-orange-700 rounded-lg p-6">
+        <div className="text-center text-gray-500 dark:text-gray-400">No chart data available</div>
+      </div>
     );
   }
 
   const { dataPoints, summary, metadata } = chartData;
 
   return (
-    <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center space-x-2 text-orange-600 dark:text-orange-400">
-              <BarChart3 className="h-6 w-6" />
-              <span>BONK Price Chart</span>
-            </CardTitle>
-            <CardDescription className="text-gray-600 dark:text-gray-400">
-              {metadata.timeRange} • {metadata.totalPoints} data points • Last updated: {new Date(metadata.lastUpdated).toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-              })}
-            </CardDescription>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => fetchChartData(selectedRange)}
-            className="border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center space-x-2 text-orange-600 dark:text-orange-400">
+            <BarChart3 className="h-6 w-6" />
+            <span>BONK Price Chart</span>
+          </CardTitle>
+          <CardDescription className="text-gray-600 dark:text-gray-400">
+            {metadata.timeRange} • {metadata.totalPoints} data points • Last updated: {new Date(metadata.lastUpdated).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            })}
+          </CardDescription>
         </div>
-      </CardHeader>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => fetchChartData(selectedRange)}
+          className="border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      </div>
       
-      <CardContent className="space-y-6">
+      <div className="space-y-6">
         {/* Chart Controls */}
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
           <div className="flex items-center space-x-4">
@@ -353,7 +347,7 @@ export function InteractivePriceChart() {
             </div>
           </div>
           
-          <div className="text-center p-4 border border-purple-200 dark:border-purple-700 rounded-lg bg-purple-50 dark:bg-purple-950">
+          <div className="text-center p-4 border border-purple-200 dark:border-purple-700 rounded-lg bg-purple-50 dark:bg-orange-950">
             <div className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">
               ${formatNumber(summary.highestVolume)}
             </div>
@@ -363,24 +357,22 @@ export function InteractivePriceChart() {
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
 function ChartSkeleton() {
   return (
-    <Card className="border-orange-200 dark:border-orange-700">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-          <Skeleton className="h-8 w-20" />
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+        <Skeleton className="h-8 w-20" />
+      </div>
+      <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="text-center p-4 border border-orange-200 dark:border-orange-700 rounded-lg bg-orange-50 dark:bg-orange-950">
@@ -406,7 +398,7 @@ function ChartSkeleton() {
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -194,95 +194,257 @@ export function MainContent() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
         
         {/* Left Sidebar - Market Data & Stats */}
-        <div className="lg:col-span-2 space-y-3 md:space-y-4">
-          {/* Current Price Card */}
+        <div className="lg:col-span-3 space-y-3 md:space-y-4">
+          {/* Unified Market Data Card - CoinGecko Style */}
           <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Current Price</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            <CardContent className="p-4">
+              {/* Header with BONK Icon and Rank */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">🐕</span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Bonk BONK Price</h3>
+                  </div>
+                </div>
+                <Badge variant="secondary" className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                  #{getMarketRank() || 'N/A'}
+                </Badge>
+              </div>
+
+              {/* Current Price and 24h Change */}
+              <div className="mb-4">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                   ${formatPrice(getCurrentPrice())}
                 </div>
-              <div className={`flex items-center text-sm ${get24hChange() >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {get24hChange() >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-                {formatPercentage(Math.abs(get24hChange()))}%
+                <div className={`flex items-center text-sm ${get24hChange() >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {get24hChange() >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
+                  {formatPercentage(Math.abs(get24hChange()))}% (24h)
+                </div>
+              </div>
+
+              {/* 24h Range Bar */}
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  <span>${formatPrice(getLow24h())}</span>
+                  <span>24h Range</span>
+                  <span>${formatPrice(getHigh24h())}</span>
+                </div>
+                <div className="relative w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
+                  <div className="absolute left-0 top-0 h-full bg-orange-500 rounded-l-full" style={{ width: '20%' }}></div>
+                  <div className="absolute left-0 top-0 h-full bg-green-500 rounded-r-full" style={{ width: '80%', left: '20%' }}></div>
+                  <div 
+                    className="absolute top-0 w-1 h-full bg-gray-800 dark:bg-white rounded-full transform -translate-x-1/2"
+                    style={{ left: `${((getCurrentPrice() - getLow24h()) / (getHigh24h() - getLow24h())) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Market Statistics List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Market Cap</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium text-gray-900 dark:text-white">${formatNumber(getMarketCap(), 1e9, 'B')}</span>
+                    <TrendingDown className="h-3 w-3 text-gray-400" />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Fully Diluted Valuation</span>
+                  <span className="font-medium text-gray-900 dark:text-white">${formatNumber(getFullyDilutedValuation(), 1e9, 'B')}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">24 Hour Trading Vol</span>
+                  <span className="font-medium text-gray-900 dark:text-white">${formatNumber(getVolume24h(), 1e6, 'M')}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Circulating Supply</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatNumber(getCirculatingSupply(), 1e12, 'T')}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Total Supply</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatNumber(getTotalSupply(), 1e12, 'T')}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Max Supply</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatNumber(getMaxSupply(), 1e12, 'T')}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Market Cap Card */}
+          {/* Info Section - CoinGecko Style */}
           <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Market Cap</CardTitle>
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Info</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-lg font-bold text-gray-900 dark:text-white">
-                  ${formatNumber(getMarketCap(), 1e9, 'B')}
+            <CardContent className="space-y-3">
+              {/* Contract */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Contract</span>
+                <div className="flex items-center space-x-2">
+                  <a 
+                    href="https://solscan.io/token/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="font-mono text-xs text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                  >
+                    DezXA...pPB263
+                  </a>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </Button>
+                </div>
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Rank #{getMarketRank() || 'N/A'}
+
+              {/* Website */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Website</span>
+                <a href="https://bonkcoin.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                  bonkcoin.com
+                </a>
+              </div>
+
+              {/* Explorers */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Explorers</span>
+                <div className="flex items-center space-x-2">
+                  <a href="https://solscan.io/token/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                    Solscan
+                  </a>
+                  <Button variant="ghost" size="sm" className="h-4 w-4 p-0">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Wallets */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Wallets</span>
+                <div className="flex items-center space-x-2">
+                  <a href="https://phantom.app/" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                    Phantom
+                  </a>
+                  <Button variant="ghost" size="sm" className="h-4 w-4 p-0">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Community */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Community</span>
+                <div className="flex items-center space-x-2">
+                  <a href="https://twitter.com/bonk_inu" target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" size="sm" className="h-6 px-2 text-xs font-medium">
+                      X Twitter
+                    </Button>
+                  </a>
+                  <a href="https://discord.gg/bonk" target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" size="sm" className="h-6 px-2 text-xs font-medium">
+                      Discord
+                    </Button>
+                  </a>
+                </div>
+              </div>
+
+              {/* Search on */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Search on</span>
+                <div className="flex items-center space-x-2">
+                  <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <a href="https://twitter.com/search?q=bonk%20crypto&src=typed_query" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                    Twitter
+                  </a>
+                </div>
+              </div>
+
+              {/* API ID */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">API ID</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-800 dark:text-gray-200 font-medium">bonk</span>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Chains */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Chains</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-800 dark:text-gray-200 font-medium">Ethereum Ecosystem</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">6 more</span>
+                  <Button variant="ghost" size="sm" className="h-4 w-4 p-0">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Categories */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">Categories</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-800 dark:text-gray-200 font-medium">Meme</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">7 more</span>
+                  <Button variant="ghost" size="sm" className="h-4 w-4 p-0">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* 24h Volume Card */}
+          {/* Quick Actions */}
           <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">24h Volume</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-bold text-gray-900 dark:text-white">
-                ${formatNumber(getVolume24h(), 1e6, 'M')}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Supply Info Card */}
-          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Supply</CardTitle>
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Circulating:</span>
-                <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                  {formatNumber(getCirculatingSupply(), 1e9, 'B')}
-                </span>
-              </div>
-              <div className="text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Max:</span>
-                <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                  {formatNumber(getMaxSupply(), 1e9, 'B')}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* High/Low Card */}
-          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">24h Range</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="text-sm">
-                <span className="text-green-600 dark:text-green-400">H:</span>
-                <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                  ${formatPrice(getHigh24h())}
-                </span>
-              </div>
-              <div className="text-sm">
-                <span className="text-red-600 dark:text-red-400">L:</span>
-                <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                  ${formatPrice(getLow24h())}
-                </span>
-              </div>
+              <a href="https://www.coingecko.com/en/coins/bonk" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950 font-medium">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  View on CoinGecko
+                </Button>
+              </a>
+              <a href="https://www.tradingview.com/symbols/SOLUSD-BONK/" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950 font-medium">
+                  <Activity className="h-4 w-4 mr-2" />
+                  Trading View
+                </Button>
+              </a>
             </CardContent>
           </Card>
         </div>
 
         {/* Center Column - Main Content */}
-        <div className="lg:col-span-8 space-y-4 md:space-y-6">
+        <div className="lg:col-span-9 space-y-4 md:space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-4 bg-orange-50 dark:bg-orange-950">
               <TabsTrigger value="letsbonk" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600">
@@ -325,59 +487,6 @@ export function MainContent() {
               <NewsUpdates />
             </TabsContent>
           </Tabs>
-        </div>
-
-        {/* Right Sidebar - Quick Actions & Info */}
-        <div className="lg:col-span-2 space-y-3 md:space-y-4">
-          {/* Quick Actions */}
-          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View on CoinGecko
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950">
-                <Activity className="h-4 w-4 mr-2" />
-                Trading View
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Market Status */}
-          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Market Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-700 dark:text-gray-300">Active Trading</span>
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Last updated: {new Date().toLocaleTimeString()}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Data Sources */}
-          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Data Sources</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center space-x-2 text-sm">
-                <Coins className="h-4 w-4 text-orange-500" />
-                <span className="text-gray-700 dark:text-gray-300">CoinGecko</span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm">
-                <BarChart3 className="h-4 w-4 text-orange-500" />
-                <span className="text-gray-700 dark:text-gray-300">Market Data</span>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
