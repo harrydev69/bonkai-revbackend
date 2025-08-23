@@ -518,8 +518,29 @@ export function HoldersDashboard() {
               API Endpoint: /api/bonk/holders
             </p>
             <p className="text-xs text-blue-600 dark:text-blue-400">
-              Cache TTL: 1-5 minutes
+              Cache TTL: 2-15 minutes
             </p>
+          </div>
+        </div>
+        
+        {/* HolderScan Attribution - Required by API Terms */}
+        <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-blue-600 dark:text-blue-400">Data powered by:</span>
+              <a 
+                href="https://holderscan.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center space-x-1 text-xs font-medium text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200"
+              >
+                <span>HolderScan</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+            <div className="text-xs text-blue-500 dark:text-blue-400">
+              Premium API Access
+            </div>
           </div>
         </div>
       </div>
@@ -622,6 +643,147 @@ export function HoldersDashboard() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
+          {/* Holder Changes Chart */}
+          <Card className="border-blue-200 dark:border-blue-700">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">🐕</span>
+                  <div>
+                    <CardTitle className="text-xl text-blue-600 dark:text-blue-400">
+                      BONK
+                    </CardTitle>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Holders Overview
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button variant="ghost" size="sm">
+                    <span className="sr-only">Menu</span>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <span className="sr-only">Copy</span>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Holders Count */}
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Holders</h3>
+                <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatNumber(holdersData.overview?.total_holders || 0)}
+                </p>
+              </div>
+
+              {/* Time-Based Holder Deltas */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                {[
+                  { label: '4 Hours', key: '4hours' as keyof typeof holdersData.deltas },
+                  { label: '12 Hours', key: '12hours' as keyof typeof holdersData.deltas },
+                  { label: '1 Day', key: '1day' as keyof typeof holdersData.deltas },
+                  { label: '3 Days', key: '3days' as keyof typeof holdersData.deltas },
+                  { label: '7 Days', key: '7days' as keyof typeof holdersData.deltas }
+                ].map(({ label, key }) => {
+                  const change = holdersData.deltas?.[key] || 0;
+                  const percentage = holdersData.overview?.total_holders ? 
+                    ((change / holdersData.overview.total_holders) * 100).toFixed(2) : '0.00';
+                  
+                  return (
+                    <div key={key} className="text-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{label}</p>
+                      <p className={`text-lg font-bold ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {change >= 0 ? '+' : ''}{change}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {percentage}%
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Time Range Selector and Chart */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Range:</span>
+                    <select 
+                      value={timeRange} 
+                      onChange={(e) => setTimeRange(e.target.value)}
+                      className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    >
+                      <option value="4hours">4 Hours</option>
+                      <option value="12hours">12 Hours</option>
+                      <option value="1day">1 Day</option>
+                      <option value="3days">3 Days</option>
+                      <option value="7days">7 Days</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Simple Bar Chart */}
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={holderChangeData.filter(item => 
+                      ['4hours', '12hours', '1day', '3days', '7days'].includes(item.period.toLowerCase().replace(/\s+/g, ''))
+                    )} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <XAxis 
+                        dataKey="period" 
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        tickFormatter={(value) => {
+                          const periodMap: { [key: string]: string } = {
+                            '4 Hours': '4H',
+                            '12 Hours': '12H',
+                            '1 Day': '1D',
+                            '3 Days': '3D',
+                            '7 Days': '7D'
+                          };
+                          return periodMap[value] || value;
+                        }}
+                      />
+                      <YAxis 
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        tickFormatter={(value) => formatNumber(value)}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: '#1f2937',
+                          border: '1px solid #374151',
+                          borderRadius: '8px',
+                          color: '#f9fafb'
+                        }}
+                        formatter={(value: any) => [
+                          `${(value as number) > 0 ? '+' : ''}${formatNumber(value as number)}`,
+                          'Holder Change'
+                        ]}
+                        labelFormatter={(label) => `Period: ${label}`}
+                      />
+                      <Bar dataKey="change" radius={[4, 4, 0, 0]}>
+                        {holderChangeData.filter(item => 
+                          ['4hours', '12hours', '1day', '3days', '7days'].includes(item.period.toLowerCase().replace(/\s+/g, ''))
+                        ).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Holder Changes Chart */}
           <Card className="border-orange-200 dark:border-orange-700">
             <CardHeader>
@@ -770,9 +932,14 @@ export function HoldersDashboard() {
                   <Building2 className="h-5 w-5 mr-2 inline" />
                   CEX Holdings
                 </CardTitle>
-                <Badge variant="outline" className="text-xs">
-                  {holdersData.cexHoldings && holdersData.cexHoldings.length > 0 ? 'Live Data' : 'Fallback Data'}
-                </Badge>
+                <div className="flex items-center space-x-2">
+                  <Badge variant="outline" className="text-xs">
+                    {holdersData.cexHoldings && holdersData.cexHoldings.length > 0 ? 'Live Data' : 'Fallback Data'}
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    HolderScan
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -820,7 +987,7 @@ export function HoldersDashboard() {
               
               {/* Data Source Info */}
               <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
-                <div className="flex items-center space-x-2 text-sm text-emerald-800 dark:text-emerald-200">
+                <div className="flex items-center space-x-2 text-sm text-emerald-800 dark:text-emerald-200 mb-2">
                   <Info className="h-4 w-4" />
                   <span>
                     {holdersData.cexHoldings && holdersData.cexHoldings.length > 0 
@@ -828,6 +995,27 @@ export function HoldersDashboard() {
                       : 'Showing fallback CEX holdings data (API data unavailable)'
                     }
                   </span>
+                </div>
+                
+                {/* HolderScan Attribution */}
+                <div className="mt-2 pt-2 border-t border-emerald-200 dark:border-emerald-700">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-emerald-600 dark:text-emerald-400">Data Source:</span>
+                      <a 
+                        href="https://holderscan.com" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-1 text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200"
+                      >
+                        <span>HolderScan.com</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                    <span className="text-emerald-500 dark:text-emerald-400">
+                      Premium API
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -1402,7 +1590,7 @@ export function HoldersDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {holdersData.topHolders.holders && holdersData.topHolders.holders.length > 0 ? (
+                    {holdersData.topHolders?.holders && holdersData.topHolders.holders.length > 0 ? (
                       holdersData.topHolders.holders.slice(0, 20).map((holder, index) => (
                         <tr key={holder.rank} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800">
                           <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">
@@ -1454,7 +1642,7 @@ export function HoldersDashboard() {
                 </table>
               </div>
               <div className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
-                Showing top 20 of {holdersData.topHolders.holder_count?.toLocaleString() || '0'} holders
+                Showing top 20 of {holdersData.topHolders?.holder_count?.toLocaleString() || '0'} holders
               </div>
             </CardContent>
           </Card>

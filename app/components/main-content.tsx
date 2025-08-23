@@ -62,6 +62,7 @@ import { BONKNewsFeed } from "./bonk-news-feed";
 import { HoldersDashboard } from "./holders-dashboard";
 
 export function MainContent() {
+  
   const [activeTab, setActiveTab] = useState("letsbonk");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showProductTour, setShowProductTour] = useState(false);
@@ -70,10 +71,12 @@ export function MainContent() {
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
   const [bonkData, setBonkData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [holdersData, setHoldersData] = useState<any>(null);
 
   useEffect(() => {
     // Fetch initial BONK data
     fetchBonkData();
+    fetchHoldersData();
   }, []);
 
   useEffect(() => {
@@ -143,6 +146,28 @@ export function MainContent() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHoldersData = async () => {
+    try {
+      console.log('🔍 Fetching holders data...');
+      const response = await fetch('/api/bonk/holders?endpoint=overview', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Holders data received:', data);
+        setHoldersData(data);
+        console.log('🔄 State updated with holders data');
+      } else {
+        console.error('❌ Failed to fetch holders overview:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch holders data:', error);
     }
   };
 
@@ -679,6 +704,64 @@ export function MainContent() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Holders Section - Compact */}
+          <Card className="border-orange-200 hover:shadow-orange-100 dark:border-orange-700 dark:hover:shadow-orange-900">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-600 dark:text-orange-400">Holders</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Total Holders Count */}
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Total Holders</h3>
+                <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+                  {holdersData?.overview?.total_holders ? 
+                    (holdersData.overview.total_holders / 1000).toFixed(1) + 'K' : 
+                    '0K'
+                  }
+                </p>
+              </div>
+
+              {/* Time-Based Holder Deltas */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: '4 Hours', key: '4hours' },
+                  { label: '12 Hours', key: '12hours' },
+                  { label: '1 Day', key: '1day' },
+                  { label: '3 Days', key: '3days' }
+                ].map(({ label, key }) => {
+                  const change = holdersData?.deltas?.[key as keyof typeof holdersData.deltas] || 0;
+                  const percentage = holdersData?.overview?.total_holders ? 
+                    ((change / holdersData.overview.total_holders) * 100).toFixed(2) : '0.00';
+                  
+                  return (
+                    <div key={key} className="text-center">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">{label}</p>
+                      <p className={`text-sm font-bold ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {change >= 0 ? '+' : ''}{change}
+                      </p>
+                      <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                        {percentage}%
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 7 Days Change */}
+              <div className="text-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">7 Days</p>
+                <p className={`text-lg font-bold ${(holdersData?.deltas?.['7days'] || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {(holdersData?.deltas?.['7days'] || 0) >= 0 ? '+' : ''}{holdersData?.deltas?.['7days'] || 0}
+                </p>
+                <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                  {holdersData?.overview?.total_holders ? 
+                    (((holdersData.deltas?.['7days'] || 0) / holdersData.overview.total_holders) * 100).toFixed(2) : '0.00'
+                  }%
+                </p>
+              </div>
             </CardContent>
           </Card>
 
