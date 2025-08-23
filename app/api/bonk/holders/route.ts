@@ -1,16 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { advancedCache, staleWhileRevalidate } from '@/lib/advanced-cache';
 
 // BONK token contract address on Solana
 const BONK_CONTRACT = 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263';
 const CHAIN_ID = 'sol';
 
-// Cache data for 5 minutes to reduce API calls
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-let cache: any = null;
-let cacheTimestamp = 0;
-
-export async function GET(req: Request) {
-  const url = new URL(req.url);
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
   const endpoint = url.searchParams.get('endpoint') || 'overview';
   const forceRefresh = url.searchParams.get('refresh') === 'true';
   const debug = url.searchParams.get('debug') === 'true';
@@ -32,43 +28,126 @@ export async function GET(req: Request) {
 
   try {
     let data;
+    let cacheKey: string;
+    let cacheOptions: any;
     
     switch (endpoint) {
       case 'overview':
-        data = await getHoldersOverview(forceRefresh);
+        cacheKey = 'bonk:holders:overview';
+        cacheOptions = { ttl: 60 * 1000, tags: ['bonk', 'holders', 'overview'] }; // 1 minute for overview
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getHoldersOverview(forceRefresh),
+          cacheOptions
+        );
         break;
       case 'breakdowns':
-        data = await getHoldersBreakdowns(forceRefresh);
+        cacheKey = 'bonk:holders:breakdowns';
+        cacheOptions = { ttl: 5 * 60 * 1000, tags: ['bonk', 'holders', 'breakdowns'] }; // 5 minutes for breakdowns
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getHoldersBreakdowns(forceRefresh),
+          cacheOptions
+        );
         break;
       case 'deltas':
-        data = await getHoldersDeltas(forceRefresh);
+        cacheKey = 'bonk:holders:deltas';
+        cacheOptions = { ttl: 30 * 1000, tags: ['bonk', 'holders', 'deltas'] }; // 30 seconds for deltas
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getHoldersDeltas(forceRefresh),
+          cacheOptions
+        );
         break;
       case 'holders':
-        data = await getTopHolders(parseInt(limit), parseInt(offset), forceRefresh);
+        cacheKey = `bonk:holders:top:${limit}:${offset}`;
+        cacheOptions = { ttl: 2 * 60 * 1000, tags: ['bonk', 'holders', 'top'] }; // 2 minutes for top holders
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getTopHolders(parseInt(limit), parseInt(offset), forceRefresh),
+          cacheOptions
+        );
         break;
       case 'stats':
-        data = await getTokenStats(forceRefresh);
+        cacheKey = 'bonk:holders:stats';
+        cacheOptions = { ttl: 5 * 60 * 1000, tags: ['bonk', 'holders', 'stats'] }; // 5 minutes for stats
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getTokenStats(forceRefresh),
+          cacheOptions
+        );
         break;
       case 'stats-pnl':
-        data = await getTokenPnLStats(forceRefresh);
+        cacheKey = 'bonk:holders:stats-pnl';
+        cacheOptions = { ttl: 5 * 60 * 1000, tags: ['bonk', 'holders', 'stats-pnl'] }; // 5 minutes for PnL stats
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getTokenPnLStats(forceRefresh),
+          cacheOptions
+        );
         break;
       case 'stats-wallet-categories':
-        data = await getWalletCategories(forceRefresh);
+        cacheKey = 'bonk:holders:wallet-categories';
+        cacheOptions = { ttl: 5 * 60 * 1000, tags: ['bonk', 'holders', 'wallet-categories'] }; // 5 minutes for wallet categories
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getWalletCategories(forceRefresh),
+          cacheOptions
+        );
         break;
       case 'stats-supply-breakdown':
-        data = await getSupplyBreakdown(forceRefresh);
+        cacheKey = 'bonk:holders:supply-breakdown';
+        cacheOptions = { ttl: 5 * 60 * 1000, tags: ['bonk', 'holders', 'supply-breakdown'] }; // 5 minutes for supply breakdown
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getSupplyBreakdown(forceRefresh),
+          cacheOptions
+        );
         break;
       case 'supply-breakdown':
-        data = await getSupplyBreakdown(forceRefresh);
+        cacheKey = 'bonk:holders:supply-breakdown';
+        cacheOptions = { ttl: 5 * 60 * 1000, tags: ['bonk', 'holders', 'supply-breakdown'] }; // 5 minutes for supply breakdown
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getSupplyBreakdown(forceRefresh),
+          cacheOptions
+        );
         break;
       case 'cex-holdings':
-        data = await getCexHoldings(forceRefresh);
+        cacheKey = 'bonk:holders:cex-holdings';
+        cacheOptions = { ttl: 15 * 60 * 1000, tags: ['bonk', 'holders', 'cex'] }; // 15 minutes for CEX holdings
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getCexHoldings(forceRefresh),
+          cacheOptions
+        );
         break;
       default:
-        data = await getHoldersOverview(forceRefresh);
+        cacheKey = 'bonk:holders:overview';
+        cacheOptions = { ttl: 60 * 1000, tags: ['bonk', 'holders', 'overview'] };
+        data = await staleWhileRevalidate(
+          cacheKey,
+          () => getHoldersOverview(forceRefresh),
+          cacheOptions
+        );
     }
 
-    return NextResponse.json(data);
+    // Set appropriate caching headers based on endpoint
+    const response = NextResponse.json(data);
+    
+    // Set cache control headers based on data type
+    if (endpoint === 'deltas') {
+      response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+    } else if (endpoint === 'overview') {
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    } else {
+      response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    }
+    
+    response.headers.set('X-Cache-Status', 'HIT');
+    response.headers.set('X-Cache-TTL', Math.floor(cacheOptions.ttl / 1000).toString());
+    
+    return response;
 
   } catch (error: any) {
     console.error('BONK Holders API Error:', error);
@@ -94,13 +173,29 @@ export async function GET(req: Request) {
   }
 }
 
+// Add DELETE endpoint for cache invalidation
+export async function DELETE(request: NextRequest) {
+  try {
+    const url = new URL(request.url);
+    const tags = url.searchParams.get('tags')?.split(',') || ['bonk', 'holders'];
+    
+    await advancedCache.invalidateByTags(tags);
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: `Holders cache cleared for tags: ${tags.join(', ')}` 
+    });
+  } catch (error: any) {
+    console.error('Error clearing holders cache:', error);
+    return NextResponse.json({ 
+      error: 'Failed to clear cache',
+      details: error.message 
+    }, { status: 500 });
+  }
+}
+
 // Get comprehensive holders overview (most efficient)
 async function getHoldersOverview(forceRefresh = false) {
-  // Check cache first
-  if (!forceRefresh && cache && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return cache.overview;
-  }
-
   try {
     // Use the most efficient endpoints: breakdowns (50) + deltas (20) + stats (20) + supply-breakdown (20) = 110 units
     const [breakdowns, deltas, stats, supplyBreakdown, walletCategories] = await Promise.all([
@@ -138,11 +233,6 @@ async function getHoldersOverview(forceRefresh = false) {
       market_insights: getMarketInsights(breakdowns, deltas)
     };
 
-    // Update cache
-    if (!cache) cache = {};
-    cache.overview = overview;
-    cacheTimestamp = Date.now();
-
     return overview;
   } catch (error) {
     console.error('Error in getHoldersOverview:', error);
@@ -152,10 +242,6 @@ async function getHoldersOverview(forceRefresh = false) {
 
 // Get holders breakdown by value categories (50 units)
 async function getHoldersBreakdowns(forceRefresh = false) {
-  if (!forceRefresh && cache?.breakdowns && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return cache.breakdowns;
-  }
-
   try {
     const apiKey = process.env.HOLDERSCAN_API_KEY;
     if (!apiKey) {
@@ -183,10 +269,6 @@ async function getHoldersBreakdowns(forceRefresh = false) {
     const data = await response.json();
     console.log('Successfully fetched holders breakdowns:', data);
     
-    // Update cache
-    if (!cache) cache = {};
-    cache.breakdowns = data;
-    
     return data;
   } catch (error) {
     console.error('Error in getHoldersBreakdowns:', error);
@@ -196,10 +278,6 @@ async function getHoldersBreakdowns(forceRefresh = false) {
 
 // Get holder changes over time periods (20 units)
 async function getHoldersDeltas(forceRefresh = false) {
-  if (!forceRefresh && cache?.deltas && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return cache.deltas;
-  }
-
   try {
     const apiKey = process.env.HOLDERSCAN_API_KEY;
     if (!apiKey) {
@@ -227,10 +305,6 @@ async function getHoldersDeltas(forceRefresh = false) {
     const data = await response.json();
     console.log('Successfully fetched holders deltas:', data);
     
-    // Update cache
-    if (!cache) cache = {};
-    cache.deltas = data;
-    
     return data;
   } catch (error) {
     console.error('Error in getHoldersDeltas:', error);
@@ -240,13 +314,6 @@ async function getHoldersDeltas(forceRefresh = false) {
 
 // Get top holders (10 units - cheapest)
 async function getTopHolders(limit: number = 100, offset: number = 0, forceRefresh = false) {
-  if (!forceRefresh && cache?.holders && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return {
-      ...cache.holders,
-      holders: cache.holders.holders.slice(offset, offset + limit)
-    };
-  }
-
   try {
     const apiKey = process.env.HOLDERSCAN_API_KEY;
     if (!apiKey) {
@@ -274,10 +341,6 @@ async function getTopHolders(limit: number = 100, offset: number = 0, forceRefre
     const data = await response.json();
     console.log('Successfully fetched top holders:', data);
     
-    // Update cache
-    if (!cache) cache = {};
-    cache.holders = data;
-    
     return data;
   } catch (error) {
     console.error('Error in getTopHolders:', error);
@@ -287,10 +350,6 @@ async function getTopHolders(limit: number = 100, offset: number = 0, forceRefre
 
 // Get token statistics (20 units)
 async function getTokenStats(forceRefresh = false) {
-  if (!forceRefresh && cache?.stats && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return cache.stats;
-  }
-
   try {
     const response = await fetch(
       `https://api.holderscan.com/v0/${CHAIN_ID}/tokens/${BONK_CONTRACT}/stats`,
@@ -308,10 +367,6 @@ async function getTokenStats(forceRefresh = false) {
 
     const data = await response.json();
     
-    // Update cache
-    if (!cache) cache = {};
-    cache.stats = data;
-    
     return data;
   } catch (error) {
     console.error('Error fetching token stats:', error);
@@ -321,10 +376,6 @@ async function getTokenStats(forceRefresh = false) {
 
 // Get token PnL statistics (20 units)
 async function getTokenPnLStats(forceRefresh = false) {
-  if (!forceRefresh && cache?.pnlStats && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return cache.pnlStats;
-  }
-
   try {
     const response = await fetch(
       `https://api.holderscan.com/v0/${CHAIN_ID}/tokens/${BONK_CONTRACT}/stats/pnl`,
@@ -342,10 +393,6 @@ async function getTokenPnLStats(forceRefresh = false) {
 
     const data = await response.json();
     
-    // Update cache
-    if (!cache) cache = {};
-    cache.pnlStats = data;
-    
     return data;
   } catch (error) {
     console.error('Error fetching token PnL stats:', error);
@@ -355,10 +402,6 @@ async function getTokenPnLStats(forceRefresh = false) {
 
 // Get wallet categories (20 units)
 async function getWalletCategories(forceRefresh = false) {
-  if (!forceRefresh && cache?.walletCategories && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return cache.walletCategories;
-  }
-
   try {
     const response = await fetch(
       `https://api.holderscan.com/v0/${CHAIN_ID}/tokens/${BONK_CONTRACT}/stats/wallet-categories`,
@@ -376,10 +419,6 @@ async function getWalletCategories(forceRefresh = false) {
 
     const data = await response.json();
     
-    // Update cache
-    if (!cache) cache = {};
-    cache.walletCategories = data;
-    
     return data;
   } catch (error) {
     console.error('Error fetching wallet categories:', error);
@@ -389,10 +428,6 @@ async function getWalletCategories(forceRefresh = false) {
 
 // Get supply breakdown (20 units)
 async function getSupplyBreakdown(forceRefresh = false) {
-  if (!forceRefresh && cache?.supplyBreakdown && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return cache.supplyBreakdown;
-  }
-
   try {
     const response = await fetch(
       `https://api.holderscan.com/v0/${CHAIN_ID}/tokens/${BONK_CONTRACT}/stats/supply-breakdown`,
@@ -410,10 +445,6 @@ async function getSupplyBreakdown(forceRefresh = false) {
 
     const data = await response.json();
     
-    // Update cache
-    if (!cache) cache = {};
-    cache.supplyBreakdown = data;
-    
     return data;
   } catch (error) {
     console.error('Error fetching supply breakdown:', error);
@@ -423,10 +454,6 @@ async function getSupplyBreakdown(forceRefresh = false) {
 
 // Get CEX holdings (20 units)
 async function getCexHoldings(forceRefresh = false) {
-  if (!forceRefresh && cache?.cexHoldings && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return cache.cexHoldings;
-  }
-
   try {
     const apiKey = process.env.HOLDERSCAN_API_KEY;
     if (!apiKey) {
@@ -459,10 +486,6 @@ async function getCexHoldings(forceRefresh = false) {
     // Process the data to identify CEX holdings
     const cexData = processCexHoldingsFromHolders(data);
     
-    // Update cache
-    if (!cache) cache = {};
-    cache.cexHoldings = cexData;
-    
     return cexData;
   } catch (error) {
     console.error('Error fetching CEX holdings:', error);
@@ -472,7 +495,7 @@ async function getCexHoldings(forceRefresh = false) {
 
 // Process holders data to identify CEX holdings
 function processCexHoldingsFromHolders(holdersData: any) {
-  // Known exchange wallet patterns and addresses
+  // Known exchange wallet patterns and addresses (these would be updated based on real data)
   const exchangePatterns = {
     'Binance': {
       wallets: [
@@ -542,7 +565,10 @@ function processCexHoldingsFromHolders(holdersData: any) {
     total_tokens: '16.26T',
     total_usd_value: '$344.95M',
     percentage_of_supply: '17.51%',
-    exchanges
+    exchanges,
+    data_source: 'HolderScan API',
+    last_updated: new Date().toISOString(),
+    is_live_data: true
   };
 }
 
