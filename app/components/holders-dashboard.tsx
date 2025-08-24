@@ -113,7 +113,7 @@ export function HoldersDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
-  const [timeRange, setTimeRange] = useState("1day");
+
   const [showAddresses, setShowAddresses] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -335,92 +335,9 @@ export function HoldersDashboard() {
     color: (change || 0) > 0 ? '#10b981' : (change || 0) < 0 ? '#ef4444' : '#6b7280'
   }));
 
-  // Create ACCURATE time series data using REAL API deltas (no fake interpolation)
-  const createTimeSeriesData = (view: string) => {
-    const baseData = holdersData.deltas || {};
-    
-    interface TimeSeriesPoint {
-      time: string;
-      timestamp: number;
-      change: number;
-      cumulative: number;
-    }
-    
-    if (view === "1day") {
-      // Use ACTUAL API data points for 1D view - no fake interpolation
-      const realDataPoints = [
-        { time: "1h", value: baseData["1hour"] || 0 },
-        { time: "2h", value: baseData["2hours"] || 0 },
-        { time: "4h", value: baseData["4hours"] || 0 },
-        { time: "12h", value: baseData["12hours"] || 0 },
-        { time: "24h", value: baseData["1day"] || 0 }
-      ];
-      
-      return realDataPoints.map((point, index) => ({
-        time: point.time,
-        timestamp: Date.now() - (24 - index * 6) * 60 * 60 * 1000,
-        change: point.value,
-        cumulative: realDataPoints.slice(0, index + 1).reduce((sum, p) => sum + p.value, 0)
-      }));
-      
-    } else if (view === "7days") {
-      // Use ACTUAL API data points for 7D view - no fake interpolation
-      const realDataPoints = [
-        { time: "1h", value: baseData["1hour"] || 0 },
-        { time: "2h", value: baseData["2hours"] || 0 },
-        { time: "4h", value: baseData["4hours"] || 0 },
-        { time: "12h", value: baseData["12hours"] || 0 },
-        { time: "7d", value: baseData["7days"] || 0 }
-      ];
-      
-      return realDataPoints.map((point, index) => ({
-        time: point.time,
-        timestamp: Date.now() - (7 * 24 - index * 42) * 60 * 60 * 1000,
-        change: point.value,
-        cumulative: realDataPoints.slice(0, index + 1).reduce((sum, p) => sum + p.value, 0)
-      }));
-      
-    } else {
-      // Use ACTUAL API data points for 30D view - no fake interpolation
-      const realDataPoints = [
-        { time: "1h", value: baseData["1hour"] || 0 },
-        { time: "2h", value: baseData["2hours"] || 0 },
-        { time: "4h", value: baseData["4hours"] || 0 },
-        { time: "12h", value: baseData["12hours"] || 0 },
-        { time: "1d", value: baseData["1day"] || 0 },
-        { time: "3d", value: baseData["3days"] || 0 },
-        { time: "7d", value: baseData["7days"] || 0 },
-        { time: "14d", value: baseData["14days"] || 0 },
-        { time: "30d", value: baseData["30days"] || 0 }
-      ];
-      
-      return realDataPoints.map((point, index) => ({
-        time: point.time,
-        timestamp: Date.now() - (30 * 24 - index * 3.75) * 60 * 60 * 1000,
-        change: point.value,
-        cumulative: realDataPoints.slice(0, index + 1).reduce((sum, p) => sum + p.value, 0)
-      }));
-    }
-  };
 
-  // Get time series data based on selected view
-  const timeSeriesData = createTimeSeriesData(timeRange);
 
-  // Format period labels for better readability
-  const formatPeriodLabel = (period: string) => {
-    const periodMap: { [key: string]: string } = {
-      '1hour': '1H',
-      '2hours': '2H', 
-      '4hours': '4H',
-      '12hours': '12H',
-      '1day': '1D',
-      '3days': '3D',
-      '7days': '7D',
-      '14days': '14D',
-      '30days': '30D'
-    };
-    return periodMap[period] || period;
-  };
+
 
   const categoryData = Object.entries(holdersData.breakdowns?.categories || {}).map(([category, count]) => ({
     category: category.charAt(0).toUpperCase() + category.slice(1),
@@ -643,284 +560,103 @@ export function HoldersDashboard() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
-          {/* Holder Changes Chart */}
-          <Card className="border-blue-200 dark:border-blue-700">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">🐕</span>
-                  <div>
-                    <CardTitle className="text-xl text-blue-600 dark:text-blue-400">
-                      BONK
-                    </CardTitle>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Holders Overview
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm">
-                    <span className="sr-only">Menu</span>
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <span className="sr-only">Copy</span>
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Holders Count */}
-              <div className="text-center mb-6">
-                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Holders</h3>
-                <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">
-                  {formatNumber(holdersData.overview?.total_holders || 0)}
-                </p>
-              </div>
-
-              {/* Time-Based Holder Deltas */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                {[
-                  { label: '4 Hours', key: '4hours' as keyof typeof holdersData.deltas },
-                  { label: '12 Hours', key: '12hours' as keyof typeof holdersData.deltas },
-                  { label: '1 Day', key: '1day' as keyof typeof holdersData.deltas },
-                  { label: '3 Days', key: '3days' as keyof typeof holdersData.deltas },
-                  { label: '7 Days', key: '7days' as keyof typeof holdersData.deltas }
-                ].map(({ label, key }) => {
-                  const change = holdersData.deltas?.[key] || 0;
-                  const percentage = holdersData.overview?.total_holders ? 
-                    ((change / holdersData.overview.total_holders) * 100).toFixed(2) : '0.00';
-                  
-                  return (
-                    <div key={key} className="text-center">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{label}</p>
-                      <p className={`text-lg font-bold ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {change >= 0 ? '+' : ''}{change}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {percentage}%
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Time Range Selector and Chart */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Range:</span>
-                    <select 
-                      value={timeRange} 
-                      onChange={(e) => setTimeRange(e.target.value)}
-                      className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    >
-                      <option value="4hours">4 Hours</option>
-                      <option value="12hours">12 Hours</option>
-                      <option value="1day">1 Day</option>
-                      <option value="3days">3 Days</option>
-                      <option value="7days">7 Days</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Simple Bar Chart */}
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={holderChangeData.filter(item => 
-                      ['4hours', '12hours', '1day', '3days', '7days'].includes(item.period.toLowerCase().replace(/\s+/g, ''))
-                    )} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <XAxis 
-                        dataKey="period" 
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 12, fill: '#6b7280' }}
-                        tickFormatter={(value) => {
-                          const periodMap: { [key: string]: string } = {
-                            '4 Hours': '4H',
-                            '12 Hours': '12H',
-                            '1 Day': '1D',
-                            '3 Days': '3D',
-                            '7 Days': '7D'
-                          };
-                          return periodMap[value] || value;
-                        }}
-                      />
-                      <YAxis 
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 12, fill: '#6b7280' }}
-                        tickFormatter={(value) => formatNumber(value)}
-                      />
-                      <Tooltip 
-                        contentStyle={{
-                          backgroundColor: '#1f2937',
-                          border: '1px solid #374151',
-                          borderRadius: '8px',
-                          color: '#f9fafb'
-                        }}
-                        formatter={(value: any) => [
-                          `${(value as number) > 0 ? '+' : ''}${formatNumber(value as number)}`,
-                          'Holder Change'
-                        ]}
-                        labelFormatter={(label) => `Period: ${label}`}
-                      />
-                      <Bar dataKey="change" radius={[4, 4, 0, 0]}>
-                        {holderChangeData.filter(item => 
-                          ['4hours', '12hours', '1day', '3days', '7days'].includes(item.period.toLowerCase().replace(/\s+/g, ''))
-                        ).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Holder Changes Chart */}
+          {/* Enhanced Holder Changes Bar Chart */}
           <Card className="border-orange-200 dark:border-orange-700">
             <CardHeader>
               <div className="flex items-center justify-between">
-                                  <CardTitle className="text-xl text-orange-600 dark:text-orange-400">
-                    <BarChart3 className="h-5 w-5 mr-2 inline" />
-                    Real Holder Changes (API Data)
-                  </CardTitle>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant={timeRange === "1day" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setTimeRange("1day")}
-                    >
-                      1D
-                    </Button>
-                    <Button
-                      variant={timeRange === "7days" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setTimeRange("7days")}
-                    >
-                      7D
-                    </Button>
-                    <Button
-                      variant={timeRange === "30days" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setTimeRange("30days")}
-                    >
-                      30D
-                    </Button>
-                  </div>
-                </div>
-
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={timeSeriesData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <defs>
-                        <linearGradient id="holderChangeGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1}/>
-                        </linearGradient>
-                      </defs>
-                      
-                      {/* X-Axis */}
-                      <XAxis 
-                        dataKey="time" 
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 12, fill: '#6b7280' }}
-                        interval="preserveStartEnd"
-                      />
-                      
-                      {/* Y-Axis */}
-                      <YAxis 
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 12, fill: '#6b7280' }}
-                        tickFormatter={(value) => formatNumber(value)}
-                      />
-                      
-                      {/* Tooltip */}
-                      <Tooltip 
-                        contentStyle={{
-                          backgroundColor: '#1f2937',
-                          border: '1px solid #374151',
-                          borderRadius: '8px',
-                          color: '#f9fafb'
-                        }}
-                        formatter={(value: any, name: any) => [
-                          `${(value as number) > 0 ? '+' : ''}${formatNumber(value as number)}`,
-                          name === 'change' ? 'Period Change' : 'Cumulative Change'
-                        ]}
-                        labelFormatter={(label) => `Time: ${label}`}
-                      />
-                      
-                      {/* Area Chart */}
-                      <Area 
-                        type="monotone" 
-                        dataKey="cumulative" 
-                        stroke="#f59e0b" 
-                        strokeWidth={3}
-                        fill="url(#holderChangeGradient)"
-                        dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6, stroke: '#f59e0b', strokeWidth: 2 }}
-                        name="cumulative"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-                
-                {/* Data Summary */}
-                <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Change</p>
-                    <p className={`text-lg font-bold ${timeSeriesData[timeSeriesData.length - 1]?.cumulative > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {timeSeriesData[timeSeriesData.length - 1]?.cumulative > 0 ? '+' : ''}{formatNumber(timeSeriesData[timeSeriesData.length - 1]?.cumulative || 0)}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Data Points</p>
-                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {timeSeriesData.length}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Time Range</p>
-                    <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                      {timeRange === "1day" ? "24 Hours" : timeRange === "7days" ? "7 Days" : "30 Days"}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* API Data Values */}
-                <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
-                  <p className="text-sm font-medium text-orange-800 dark:text-orange-200 mb-2">
-                    📊 Raw API Values Used:
+                <CardTitle className="text-xl text-orange-600 dark:text-orange-400">
+                  <BarChart3 className="h-5 w-5 mr-2 inline" />
+                  Holder Changes by Time Period
+                </CardTitle>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                Individual holder changes for each time period (not cumulative)
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={holderChangeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <XAxis 
+                      dataKey="period" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#6b7280' }}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#6b7280' }}
+                      tickFormatter={(value) => formatNumber(value)}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: '#1f2937',
+                        border: '1px solid #374151',
+                        borderRadius: '8px',
+                        color: '#f9fafb'
+                      }}
+                      formatter={(value: any) => [
+                        `${(value as number) > 0 ? '+' : ''}${formatNumber(value as number)} holders`,
+                        'Period Change'
+                      ]}
+                      labelFormatter={(label) => `Time Period: ${label}`}
+                    />
+                    <Bar dataKey="change" radius={[4, 4, 0, 0]}>
+                      {holderChangeData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              
+              {/* Enhanced Data Summary */}
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Total Holders</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {formatNumber(holdersData.overview?.total_holders || 0)}
                   </p>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
-                    <div className="text-center">
-                      <span className="font-medium">1h:</span> {formatNumber(holdersData.deltas?.["1hour"] || 0)}
-                    </div>
-                    <div className="text-center">
-                      <span className="font-medium">2h:</span> {formatNumber(holdersData.deltas?.["2hours"] || 0)}
-                    </div>
-                    <div className="text-center">
-                      <span className="font-medium">4h:</span> {formatNumber(holdersData.deltas?.["4hours"] || 0)}
-                    </div>
-                    <div className="text-center">
-                      <span className="font-medium">12h:</span> {formatNumber(holdersData.deltas?.["12hours"] || 0)}
-                    </div>
-                    <div className="text-center">
-                      <span className="font-medium">1d:</span> {formatNumber(holdersData.deltas?.["1day"] || 0)}
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Current total
+                  </p>
                 </div>
+                
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Net Change (24h)</p>
+                  <p className={`text-2xl font-bold ${(holdersData.deltas?.["1day"] || 0) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {(holdersData.deltas?.["1day"] || 0) > 0 ? '+' : ''}{formatNumber(holdersData.deltas?.["1day"] || 0)}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Last 24 hours
+                  </p>
+                </div>
+                
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Daily Trend</p>
+                  <div className="flex items-center justify-center space-x-1">
+                    {(holdersData.deltas?.["1day"] || 0) > 0 ? (
+                      <span className="text-green-600 dark:text-green-400">↗️ Increasing</span>
+                    ) : (
+                      <span className="text-red-600 dark:text-red-400">↘️ Decreasing</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {holdersData.deltas?.["1day"] > 0 ? 'Gaining holders' : 'Losing holders'}
+                  </p>
+                </div>
+                
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Weekly Change</p>
+                  <p className={`text-2xl font-bold ${(holdersData.deltas?.["7days"] || 0) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {(holdersData.deltas?.["7days"] || 0) > 0 ? '+' : ''}{formatNumber(holdersData.deltas?.["7days"] || 0)}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Last 7 days
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -1041,7 +777,6 @@ export function HoldersDashboard() {
                       axisLine={false}
                       tickLine={false}
                       tick={{ fontSize: 12, fill: '#6b7280' }}
-                      tickFormatter={formatPeriodLabel}
                     />
                     <YAxis 
                       axisLine={false}
